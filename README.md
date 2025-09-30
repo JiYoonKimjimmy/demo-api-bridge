@@ -163,7 +163,7 @@ Server 2: 192.168.2.101, 102, 103
 → L4/L7 로드밸런서가 모든 가상IP:10019를 백엔드 풀로 관리
 ```
 
-> **배포 가이드**: [PROCESS_MANAGEMENT.md](./docs/PROCESS_MANAGEMENT.md)
+> **배포 가이드**: [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)
 
 ---
 
@@ -213,7 +213,7 @@ Server 2: 192.168.2.101, 102, 103
 ## 📚 문서
 
 - **[레이어별 구현 가이드](./docs/LAYER_IMPLEMENTATION_GUIDE.md)**: 계층별 상세 구현 코드, DB 스키마
-- **[프로세스 관리 가이드](./docs/PROCESS_MANAGEMENT.md)**: 프로세스 관리, 가상IP 설정, 배포 스크립트
+- **[배포 가이드](./docs/DEPLOYMENT_GUIDE.md)**: 프로세스 관리, 가상IP 설정, 배포 스크립트
 
 ---
 
@@ -224,11 +224,11 @@ demo-api-bridge/
 ├── README.md                           # 프로젝트 개요 (본 문서)
 └── docs/
     ├── LAYER_IMPLEMENTATION_GUIDE.md   # 레이어별 구현 가이드
-    └── PROCESS_MANAGEMENT.md           # 프로세스 관리 가이드
+    └── DEPLOYMENT_GUIDE.md             # 배포 가이드
 ```
 
 ---
 
 ## 🔧 빠른 시작
 
-- *TODO 작성 예정*
+상세한 설정 및 사용 방법은 [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)를 참고하세요.
