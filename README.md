@@ -55,6 +55,8 @@
 - **추적**: OpenTelemetry
 - **대시보드**: Grafana
 
+> **상세 기술 스택**: [레이어별 구현 가이드](./docs/LAYER_IMPLEMENTATION_GUIDE.md) 참고
+
 ---
 
 ## 🏗️ 시스템 아키텍처
@@ -145,7 +147,7 @@
 | **6. Decision** | 전환 결정 | 임계값 평가, 자동 전환 |
 | **7. Data Layer** | 데이터 저장 | OracleDB, Redis, Prometheus |
 
-> **계층별 상세 구현**: [ARCHITECTURE_DETAIL.md](./docs/ARCHITECTURE_DETAIL.md)
+> **계층별 상세 구현**: [레이어별 구현 가이드](./docs/LAYER_IMPLEMENTATION_GUIDE.md)
 
 ### 배포 구성 (온프레미스 - 가상IP 기반)
 
@@ -210,8 +212,8 @@ Server 2: 192.168.2.101, 102, 103
 
 ## 📚 문서
 
-- **[ARCHITECTURE_DETAIL.md](./docs/ARCHITECTURE_DETAIL.md)**: 계층별 상세 구현 코드, DB 스키마
-- **[PROCESS_MANAGEMENT.md](./docs/PROCESS_MANAGEMENT.md)**: 프로세스 관리, 가상IP 설정, 배포 스크립트
+- **[레이어별 구현 가이드](./docs/LAYER_IMPLEMENTATION_GUIDE.md)**: 계층별 상세 구현 코드, DB 스키마
+- **[프로세스 관리 가이드](./docs/PROCESS_MANAGEMENT.md)**: 프로세스 관리, 가상IP 설정, 배포 스크립트
 
 ---
 
@@ -219,10 +221,10 @@ Server 2: 192.168.2.101, 102, 103
 
 ```
 demo-api-bridge/
-├── README.md                      # 프로젝트 개요 (본 문서)
+├── README.md                           # 프로젝트 개요 (본 문서)
 └── docs/
-    ├── ARCHITECTURE_DETAIL.md     # 상세 구현 가이드
-    └── PROCESS_MANAGEMENT.md      # 운영 가이드
+    ├── LAYER_IMPLEMENTATION_GUIDE.md   # 레이어별 구현 가이드
+    └── PROCESS_MANAGEMENT.md           # 프로세스 관리 가이드
 ```
 
 ---
