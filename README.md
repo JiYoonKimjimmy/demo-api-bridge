@@ -41,7 +41,7 @@
 
 ### 개발
 - **언어**: Go 1.21+
-- **프레임워크**: Gin/Fiber
+- **프레임워크**: Gin
 - **동시성**: Goroutine, Channel, Worker Pool
 - **패턴**: Circuit Breaker, Event-Driven
 
@@ -247,5 +247,11 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정은 [개발 계
 - Phase 3: 전환 로직 (2주)
 - Phase 4: 안정화 (2주)
 - Phase 5: 배포 준비 (1주)
+
+---
+
+## 📎 참고 자료
+
+- **[프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)**: Gin vs Fiber 상세 비교 분석
 
 ---
