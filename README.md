@@ -1,6 +1,6 @@
 # API Bridge 시스템 😎
 
-레거시 시스템에서 모던 시스템으로 안전하게 마이그레이션하기 위한 API 브리지
+레거시 시스템에서 모던 시스템으로 안전하게 마이그레이션하기 위한 API Bridge 시스템
 
 ---
 
@@ -203,7 +203,7 @@ Server 2: 192.168.2.101, 102, 103
 
 ## 📈 성능 목표
 
-- **레이턴시**: < 30ms (p95, 브리지 추가 오버헤드)
+- **레이턴시**: < 30ms (p95, 브릿지 추가 오버헤드)
 - **처리량**: 최소 5,000 TPS
 - **메모리**: < 200MB (안정 상태)
 - **일치율**: 100% 도달 시 자동 전환
@@ -212,8 +212,9 @@ Server 2: 192.168.2.101, 102, 103
 
 ## 📚 문서
 
-- **[레이어별 구현 가이드](./docs/IMPLEMENTATION_GUIDE.md)**: 계층별 상세 구현 코드, DB 스키마
+- **[구현 가이드](./docs/IMPLEMENTATION_GUIDE.md)**: 계층별 상세 구현 코드, DB 스키마
 - **[배포 가이드](./docs/DEPLOYMENT_GUIDE.md)**: 프로세스 관리, 가상IP 설정, 배포 스크립트
+- **[개발 계획](./docs/DEPLOYMENT_PLAN.md)**: 개발 일정, 스프린트, 마일스톤, 리스크 관리
 
 ---
 
@@ -221,10 +222,11 @@ Server 2: 192.168.2.101, 102, 103
 
 ```
 demo-api-bridge/
-├── README.md                           # 프로젝트 개요 (본 문서)
+├── README.md                      # 프로젝트 개요 (본 문서)
 └── docs/
-    ├── IMPLEMENTATION_GUIDE.md         # 레이어별 구현 가이드
-    └── DEPLOYMENT_GUIDE.md             # 배포 가이드
+    ├── IMPLEMENTATION_GUIDE.md    # 구현 가이드
+    ├── DEPLOYMENT_GUIDE.md        # 배포 가이드
+    └── DEPLOYMENT_PLAN.md         # 개발 계획
 ```
 
 ---
@@ -232,3 +234,18 @@ demo-api-bridge/
 ## 🔧 빠른 시작
 
 상세한 설정 및 사용 방법은 [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)를 참고하세요.
+
+---
+
+## 📅 개발 계획
+
+API Bridge 시스템 개발을 위한 단계별 계획 및 일정은 [개발 계획](./docs/DEPLOYMENT_PLAN.md)을 참고하세요.
+
+**개발 기간**: 약 8-10주
+- Phase 1: 기반 구축 (2주)
+- Phase 2: 핵심 기능 (3주)
+- Phase 3: 전환 로직 (2주)
+- Phase 4: 안정화 (2주)
+- Phase 5: 배포 준비 (1주)
+
+---
