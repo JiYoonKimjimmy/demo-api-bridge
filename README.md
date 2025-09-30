@@ -1,6 +1,6 @@
-# API Bridge 시스템 😎
+# API Bridge System (ABS) 😎
 
-레거시 시스템에서 모던 시스템으로 안전하게 마이그레이션하기 위한 API Bridge 시스템
+레거시 시스템에서 모던 시스템으로 안전하게 마이그레이션하기 위한 API Bridge System
 
 ---
 
@@ -42,8 +42,9 @@
 ### 개발
 - **언어**: Go 1.21+
 - **프레임워크**: Gin
+- **아키텍처**: Hexagonal Architecture (Ports & Adapters)
 - **동시성**: Goroutine, Channel, Worker Pool
-- **패턴**: Circuit Breaker, Event-Driven
+- **패턴**: Circuit Breaker, Event-Driven, DI
 
 ### 데이터
 - **DB**: OracleDB (메타데이터)
@@ -253,5 +254,6 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정은 [개발 계
 ## 📎 참고 자료
 
 - **[프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)**: Gin vs Fiber 상세 비교 분석
+- **[헥사고날 아키텍처](./docs/HEXAGONAL_ARCHITECTURE.md)**: ABS 헥사고날 아키텍처 설계 가이드
 
 ---
