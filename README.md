@@ -253,6 +253,7 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정은 [개발 계
 
 ## 📎 참고 자료
 
+- **[Go 설치 가이드](./docs/GOLANG_SETUP_GUIDE.md)**: Windows 환경 Go 개발 환경 설정
 - **[프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)**: Gin vs Fiber 상세 비교 분석
 - **[헥사고날 아키텍처](./docs/HEXAGONAL_ARCHITECTURE.md)**: ABS 헥사고날 아키텍처 설계 가이드
 
