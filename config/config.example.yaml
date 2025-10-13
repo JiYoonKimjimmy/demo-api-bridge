@@ -1,0 +1,49 @@
+# API Bridge 설정 예시 파일
+# 실제 사용시 config.yaml로 복사하여 사용하세요
+
+server:
+  port: 10019
+  mode: debug  # debug, release
+  read_timeout: 10s
+  write_timeout: 10s
+  max_header_bytes: 1048576  # 1MB
+
+log:
+  level: info  # debug, info, warn, error
+  format: json  # json, console
+  output: stdout  # stdout, file
+  file_path: ./logs/app.log
+
+# Oracle Database 설정
+database:
+  host: localhost
+  port: 1521
+  service_name: ORCL
+  username: your_username
+  password: your_password
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+# Redis Cache 설정
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
+
+# 외부 API 설정
+external_api:
+  base_url: https://api.example.com
+  timeout: 30s
+  retry_count: 3
+  retry_delay: 1s
+
+# 모니터링
+metrics:
+  enabled: true
+  port: 9090
+  path: /metrics
+

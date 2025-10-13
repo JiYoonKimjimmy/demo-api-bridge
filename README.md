@@ -1,260 +1,205 @@
-# API Bridge System (ABS) 😎
+# Demo API Bridge
 
-레거시 시스템에서 모던 시스템으로 안전하게 마이그레이션하기 위한 API Bridge System
+헥사고날 아키텍처 기반의 API Bridge 시스템입니다.
 
----
+## 📋 프로젝트 개요
 
-## 📋 개요
+이 프로젝트는 외부 API와 내부 시스템(Oracle DB, Redis Cache) 간의 중계 역할을 하는 API Bridge 서비스입니다. 헥사고날 아키텍처(포트&어댑터)를 적용하여 유지보수성과 테스트 용이성을 극대화했습니다.
 
-**목적**: 레거시 API와 모던 API 응답을 실시간 비교하여 100% 일치 시 자동 전환
-
-**핵심 가치**:
-- 🔄 **무중단 마이그레이션**: 서비스 중단 없이 점진적 전환
-- ✅ **검증 기반 전환**: 응답 일치율 100% 도달 시 자동 전환
-- 🛡️ **안전한 롤백**: 문제 발생 시 즉시 레거시로 복구
-
----
-
-## 🎯 핵심 기능
-
-### 1. 라우팅 전략
-- **LEGACY_ONLY**: 레거시 API만 호출
-- **PARALLEL**: 레거시 + 모던 병렬 호출 및 응답 비교
-- **MODERN_ONLY**: 모던 API만 호출 (전환 완료)
-
-### 2. 응답 검증
-- JSON 구조 및 값 비교 (재귀적 Diff)
-- 일치율 계산 및 실시간 집계
-- 불일치 항목 상세 기록
-
-### 3. 자동 전환
-- 일치율 임계값 도달 시 자동 전환 (기본: 100%)
-- 안정성 보장 (최근 N개 요청 모두 100% 확인)
-- 전환 이력 관리
-
-### 4. 모니터링
-- API별 일치율/전환율 실시간 추적
-- Prometheus + Grafana 대시보드
-- 응답 시간, 에러율 메트릭
-
-## 💻 기술 스택
-
-### 개발
-- **언어**: Go 1.21+
-- **프레임워크**: Gin
-- **아키텍처**: Hexagonal Architecture (Ports & Adapters)
-- **동시성**: Goroutine, Channel, Worker Pool
-- **패턴**: Circuit Breaker, Event-Driven, DI
-
-### 데이터
-- **DB**: OracleDB (메타데이터)
-- **캐시**: Redis (매핑, 일치율)
-- **메트릭**: Prometheus
-
-### 모니터링
-- **로깅**: zap/zerolog (JSON)
-- **추적**: OpenTelemetry
-- **대시보드**: Grafana
-
-> **상세 기술 스택**: [레이어별 구현 가이드](./docs/IMPLEMENTATION_GUIDE.md) 참고
-
----
-
-## 🏗️ 시스템 아키텍처
-
-### 전체 구성
-
-```
-┌─────────────┐
-│   Client    │
-│ Application │
-└──────┬──────┘
-       │ HTTP Request
-       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Load Balancer                           │
-│                  (L4/L7, Nginx, HAProxy)                    │
-└─────────┬───────────────────────┬───────────────────────────┘
-          │                       │
-          ▼                       ▼
-    ┌─────────┐            ┌─────────┐
-    │ Bridge  │            │ Bridge  │  ... (N instances)
-    │Instance1│            │Instance2│
-    └────┬────┘            └────┬────┘
-         │                      │
-         └──────────┬───────────┘
-                    ▼
-    ┌───────────────────────────────────────┐
-    │      API Bridge Core System           │
-    │         (Go Application)              │
-    │                                       │
-    │  ┌─────────────────────────────────┐  │
-    │  │   Routing Layer                 │  │
-    │  │  - Request Handler              │  │
-    │  │  - Route Matcher                │  │
-    │  │  - Strategy Selector            │  │
-    │  └──────────────┬──────────────────┘  │
-    │                 │                     │
-    │  ┌──────────────┴──────────────────┐  │
-    │  │   Orchestration Layer           │  │
-    │  │  - Parallel Caller (Goroutines) │  │
-    │  │  - Response Aggregator          │  │
-    │  │  - Circuit Breaker              │  │
-    │  └──────────────┬──────────────────┘  │
-    │                 │                     │
-    │       ┌─────────┴─────────┐           │
-    │       │                   │           │
-    │       ▼                   ▼           │
-    │  ┌─────────┐        ┌─────────┐       │
-    │  │ Legacy  │        │ Modern  │       │
-    │  │API      │        │API      │       │
-    │  │Client   │        │Client   │       │
-    │  └────┬────┘        └────┬────┘       │
-    │       │                  │            │
-    │  ┌────┴──────────────────┴────┐       │
-    │  │   Comparison Engine        │       │
-    │  │  - JSON Diff               │       │
-    │  │  - Match Rate Calculator   │       │
-    │  └──────────────┬─────────────┘       │
-    │                 │                     │
-    │  ┌──────────────┴─────────────────┐   │
-    │  │   Decision Engine              │   │
-    │  │  - Threshold Evaluator         │   │
-    │  │  - Transition Controller       │   │
-    │  │  - Fallback Handler            │   │
-    │  └────────────────────────────────┘   │
-    └───────────────────────────────────────┘
-         │           │           │
-         ▼           ▼           ▼
-    ┌────────┐  ┌────────┐  ┌─────────┐
-    │OracleDB│  │ Redis  │  │Prometheu│
-    │        │  │(Cache) │  │  s      │
-    └────────┘  └────────┘  └─────────┘
-         │           │           │
-         ▼           ▼           ▼
-    [Metadata]  [Runtime]  [Metrics]
-                [State]
-```
-
-### 7개 핵심 계층
-
-| 계층 | 역할 | 핵심 기능 |
-|------|------|----------|
-| **1. API Gateway** | 요청 수신 | Middleware (Logger, CORS, Rate Limiter) |
-| **2. Routing** | 매핑 조회 | 캐시 기반 라우팅, 전략 선택 |
-| **3. Orchestration** | 병렬 호출 | 고루틴/채널, Circuit Breaker |
-| **4. HTTP Client** | API 호출 | Connection Pool, Retry 로직 |
-| **5. Comparison** | 응답 비교 | JSON Diff, 일치율 계산 |
-| **6. Decision** | 전환 결정 | 임계값 평가, 자동 전환 |
-| **7. Data Layer** | 데이터 저장 | OracleDB, Redis, Prometheus |
-
-> **계층별 상세 구현**: [레이어별 구현 가이드](./docs/IMPLEMENTATION_GUIDE.md)
-
-### 배포 구성 (온프레미스 - 가상IP 기반)
-
-**특징**:
-- 멀티 서버 + 각 서버당 멀티 인스턴스
-- 가상IP로 인스턴스 분리, 동일 포트(10019) 사용
-- Shell Script 기반 프로세스 관리 (Root 권한 불필요)
-
-**예시**:
-```
-Server 1: 192.168.1.101, 102, 103 (Instance 1, 2, 3)
-Server 2: 192.168.2.101, 102, 103
-→ L4/L7 로드밸런서가 모든 가상IP:10019를 백엔드 풀로 관리
-```
-
-> **배포 가이드**: [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)
-
----
-
-## 📊 데이터 흐름
-
-### PARALLEL 모드 (검증 단계)
-
-```
-1. 클라이언트 요청
-2. Routing: 캐시에서 매핑 조회 (Strategy = PARALLEL)
-3. Orchestration: 고루틴으로 레거시/모던 병렬 호출
-4. 응답 수집 → 레거시 응답 즉시 반환
-5. [비동기] 응답 비교 → 일치율 계산 → DB 저장 → 메트릭 기록
-```
-
-### MODERN_ONLY 모드 (전환 완료)
-
-```
-1. 클라이언트 요청
-2. Routing: Strategy = MODERN_ONLY 확인
-3. 모던 API만 호출
-4. 응답 반환 (비교 스킵)
-```
-
----
-
-## 🛡️ 장애 대응
-
-| 장애 상황 | 대응 전략 |
-|----------|----------|
-| **레거시 API 장애** | Circuit Breaker Open → 모던 API만 호출 |
-| **모던 API 장애** | Circuit Breaker Open → 레거시 API만 호출 |
-| **DB 장애** | 캐시에서 읽기 계속 제공 (쓰기만 실패) |
-| **Redis 장애** | DB 직접 조회 (성능 저하, 서비스 지속) |
-
----
-
-## 📈 성능 목표
-
-- **레이턴시**: < 30ms (p95, 브릿지 추가 오버헤드)
-- **처리량**: 최소 5,000 TPS
-- **메모리**: < 200MB (안정 상태)
-- **일치율**: 100% 도달 시 자동 전환
-
----
-
-## 📚 문서
-
-- **[구현 가이드](./docs/IMPLEMENTATION_GUIDE.md)**: 계층별 상세 구현 코드, DB 스키마
-- **[배포 가이드](./docs/DEPLOYMENT_GUIDE.md)**: 프로세스 관리, 가상IP 설정, 배포 스크립트
-- **[개발 계획](./docs/DEPLOYMENT_PLAN.md)**: 개발 일정, 스프린트, 마일스톤, 리스크 관리
-
----
-
-## 🗂️ 프로젝트 구조
+## 🏗️ 아키텍처
 
 ```
 demo-api-bridge/
-├── README.md                      # 프로젝트 개요 (본 문서)
-└── docs/
-    ├── IMPLEMENTATION_GUIDE.md    # 구현 가이드
-    ├── DEPLOYMENT_GUIDE.md        # 배포 가이드
-    └── DEPLOYMENT_PLAN.md         # 개발 계획
+├── cmd/
+│   └── api-bridge/          # 애플리케이션 진입점
+│       └── main.go
+├── internal/
+│   ├── adapter/
+│   │   ├── inbound/         # 인바운드 어댑터
+│   │   │   └── http/        # HTTP API 핸들러
+│   │   └── outbound/        # 아웃바운드 어댑터
+│   │       ├── httpclient/  # 외부 API 클라이언트
+│   │       ├── database/    # Oracle DB 어댑터
+│   │       └── cache/       # Redis 캐시 어댑터
+│   └── core/
+│       ├── domain/          # 도메인 모델
+│       ├── port/            # 포트 인터페이스
+│       └── service/         # 비즈니스 로직
+├── pkg/
+│   ├── logger/              # 로깅 유틸리티
+│   └── metrics/             # 모니터링 메트릭
+├── config/                  # 설정 파일
+├── docs/                    # 문서
+├── scripts/                 # 유틸리티 스크립트
+└── test/                    # 통합 테스트
 ```
 
+## 🚀 시작하기
+
+### 필수 요구사항
+
+- Go 1.21 이상
+- Oracle Database (선택)
+- Redis (선택)
+
+### 설치
+
+1. 저장소 클론
+
+```bash
+git clone <repository-url>
+cd demo-api-bridge
+```
+
+2. 의존성 설치
+
+```bash
+go mod download
+```
+
+3. 개발 도구 설치 (선택)
+
+```bash
+make install-tools
+```
+
+### 실행
+
+#### 개발 모드 (핫 리로드)
+
+```bash
+make run
+# 또는
+air
+```
+
+#### 직접 실행
+
+```bash
+make run-direct
+# 또는
+go run cmd/api-bridge/main.go
+```
+
+#### 빌드 후 실행
+
+```bash
+make build
+./bin/api-bridge.exe
+```
+
+## 🔧 설정
+
+1. 설정 파일 복사
+
+```bash
+cp config/config.example.yaml config/config.yaml
+```
+
+2. `config/config.yaml` 파일을 환경에 맞게 수정
+
+## 📚 API 엔드포인트
+
+### Health Check
+
+```bash
+GET /health
+```
+
+응답:
+```json
+{
+  "status": "ok",
+  "service": "api-bridge",
+  "version": "0.1.0"
+}
+```
+
+### Readiness Check
+
+```bash
+GET /ready
+```
+
+### Status
+
+```bash
+GET /api/v1/status
+```
+
+## 🧪 테스트
+
+```bash
+# 전체 테스트 실행
+make test
+
+# 커버리지 확인
+make test-coverage
+
+# 린트 실행
+make lint
+```
+
+## 📖 문서
+
+- [헥사고날 아키텍처 가이드](./docs/HEXAGONAL_ARCHITECTURE.md)
+- [구현 가이드](./docs/IMPLEMENTATION_GUIDE.md)
+- [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)
+- [Go 개발 환경 설정](./docs/GOLANG_SETUP_GUIDE.md)
+- [프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)
+
+## 🛠️ 개발
+
+### 코드 포맷팅
+
+```bash
+make fmt
+```
+
+### 의존성 정리
+
+```bash
+make tidy
+```
+
+### 빌드
+
+```bash
+make build
+```
+
+## 📊 모니터링
+
+Prometheus 메트릭은 `/metrics` 엔드포인트에서 확인할 수 있습니다 (설정 시).
+
+## 🔐 환경 변수
+
+| 변수명 | 설명 | 기본값 |
+|--------|------|--------|
+| PORT | 서버 포트 | 10019 |
+| GIN_MODE | Gin 모드 | release |
+
+## 🤝 기여
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 라이선스
+
+This project is licensed under the MIT License.
+
+## 👥 작성자
+
+- Backend Developer
+
+## 📧 문의
+
+프로젝트에 대한 문의사항이 있으시면 이슈를 등록해주세요.
+
 ---
 
-## 🔧 빠른 시작
-
-상세한 설정 및 사용 방법은 [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)를 참고하세요.
-
----
-
-## 📅 개발 계획
-
-API Bridge 시스템 개발을 위한 단계별 계획 및 일정은 [개발 계획](./docs/DEPLOYMENT_PLAN.md)을 참고하세요.
-
-**개발 기간**: 약 8-10주
-- Phase 1: 기반 구축 (2주)
-- Phase 2: 핵심 기능 (3주)
-- Phase 3: 전환 로직 (2주)
-- Phase 4: 안정화 (2주)
-- Phase 5: 배포 준비 (1주)
-
----
-
-## 📎 참고 자료
-
-- **[Go 설치 가이드](./docs/GOLANG_SETUP_GUIDE.md)**: Windows 환경 Go 개발 환경 설정
-- **[프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)**: Gin vs Fiber 상세 비교 분석
-- **[헥사고날 아키텍처](./docs/HEXAGONAL_ARCHITECTURE.md)**: ABS 헥사고날 아키텍처 설계 가이드
-
----
+**Last Updated**: 2025-10-13
+**Version**: 0.1.0
