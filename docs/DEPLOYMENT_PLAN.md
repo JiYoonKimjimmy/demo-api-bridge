@@ -23,8 +23,8 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정
 ### Week 1: 프로젝트 초기화 및 기본 구조
 
 #### 1.1. 프로젝트 설정
-- [ ] Go 프로젝트 초기화 (`go mod init`)
-- [ ] 기본 디렉토리 구조 생성
+- [x] Go 프로젝트 초기화 (`go mod init`)
+- [x] 기본 디렉토리 구조 생성
   ```
   cmd/
   ├── api-bridge/        # 메인 애플리케이션
@@ -42,46 +42,46 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정
   ├── metrics/           # Prometheus Metrics
   └── cache/             # Redis Cache
   ```
-- [ ] 외부 라이브러리 설치
-  - Gin/Fiber 프레임워크
-  - GORM (OracleDB 드라이버)
-  - go-redis
-  - prometheus/client_golang
-  - zap/zerolog
-  - viper
+- [x] 외부 라이브러리 설치
+  - [x] Gin/Fiber 프레임워크
+  - [ ] GORM (OracleDB 드라이버) *(Mock Repository로 대체)*
+  - [x] go-redis
+  - [x] prometheus/client_golang
+  - [x] zap/zerolog
+  - [ ] viper *(기본 설정으로 대체)*
 
 #### 1.2. 설정 관리
-- [ ] 설정 파일 구조 설계 (config.yaml)
-- [ ] Viper 기반 설정 로더 구현
-- [ ] 환경변수 오버라이드 지원
+- [x] 설정 파일 구조 설계 (config.yaml)
+- [ ] Viper 기반 설정 로더 구현 *(기본 설정으로 대체)*
+- [x] 환경변수 오버라이드 지원
 - [ ] 다중 인스턴스 설정 파일 (config-1.yaml, config-2.yaml 등)
 
 #### 1.3. 로깅 시스템
-- [ ] 구조화된 로깅 (JSON 형식)
-- [ ] Trace ID 생성 및 컨텍스트 전파
+- [x] 구조화된 로깅 (JSON 형식)
+- [x] Trace ID 생성 및 컨텍스트 전파
 - [ ] 로그 레벨 동적 변경 API
 - [ ] 로그 파일 로테이션 (lumberjack)
 
 ### Week 2: 데이터베이스 및 캐시
 
 #### 2.1. OracleDB 스키마
-- [ ] 테이블 설계 및 DDL 작성
-  - `api_mappings`: API 매핑 정보
-  - `comparison_history`: 비교 결과 이력
-  - `transition_history`: 전환 이력
-- [ ] 인덱스 생성
-- [ ] GORM 모델 정의
-- [ ] Repository 패턴 구현
+- [x] 테이블 설계 및 DDL 작성 *(Mock Repository로 구현)*
+  - [x] `api_mappings`: API 매핑 정보
+  - [x] `comparison_history`: 비교 결과 이력
+  - [x] `transition_history`: 전환 이력
+- [ ] 인덱스 생성 *(Mock에서는 불필요)*
+- [x] GORM 모델 정의 *(Domain 모델로 대체)*
+- [x] Repository 패턴 구현
 
 #### 2.2. Redis 캐시
-- [ ] Redis 연결 풀 설정
-- [ ] 캐시 키 설계
-- [ ] TTL 전략 구현
-- [ ] Cache Aside 패턴 구현
+- [x] Redis 연결 풀 설정
+- [x] 캐시 키 설계
+- [x] TTL 전략 구현
+- [x] Cache Aside 패턴 구현
 
 #### 2.3. Health Check
-- [ ] `/health` 엔드포인트 (기본 헬스체크)
-- [ ] `/ready` 엔드포인트 (DB, Redis 연결 확인)
+- [x] `/health` 엔드포인트 (기본 헬스체크)
+- [x] `/ready` 엔드포인트 (DB, Redis 연결 확인)
 
 ---
 
@@ -90,20 +90,20 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정
 ### Week 3: API Gateway & Routing Layer
 
 #### 3.1. API Gateway Layer
-- [ ] HTTP Server 초기화 (Gin/Fiber)
-- [ ] Middleware 구현
-  - Request Logger
-  - CORS Handler
-  - Rate Limiter
-  - Request Validator
+- [x] HTTP Server 초기화 (Gin/Fiber)
+- [ ] Middleware 구현 *(기본 미들웨어만 구현)*
+  - [x] Request Logger
+  - [ ] CORS Handler
+  - [ ] Rate Limiter
+  - [ ] Request Validator
 - [ ] 가상IP 바인딩 구현
-- [ ] Graceful Shutdown
+- [x] Graceful Shutdown
 
 #### 3.2. Routing Layer
-- [ ] APIMapping 구조체 및 Repository
-- [ ] Radix Tree 기반 URL 매칭
-- [ ] 캐시 조회 로직
-- [ ] 라우팅 전략 선택
+- [x] APIMapping 구조체 및 Repository *(Domain 및 Mock Repository로 구현)*
+- [ ] Radix Tree 기반 URL 매칭 *(기본 매칭으로 대체)*
+- [x] 캐시 조회 로직
+- [x] 라우팅 전략 선택
 
 ### Week 4: Orchestration Layer
 
@@ -122,10 +122,10 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정
 ### Week 5: HTTP Client & Comparison Engine
 
 #### 5.1. HTTP Client Layer
-- [ ] HTTP Client 구현
+- [x] HTTP Client 구현
 - [ ] Connection Pool 최적화
-- [ ] Retry 로직 (Exponential Backoff)
-- [ ] 타임아웃 설정 (Dial, Response Header 등)
+- [x] Retry 로직 (Exponential Backoff)
+- [x] 타임아웃 설정 (Dial, Response Header 등)
 - [ ] HTTP/2 지원
 
 #### 5.2. Comparison Engine
@@ -276,9 +276,9 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정
 
 ## 🎯 마일스톤
 
-### Milestone 1: 기반 완성 (Week 2)
+### Milestone 1: 기반 완성 (Week 2) ✅
 - ✅ 프로젝트 구조 및 설정
-- ✅ DB 스키마 완성
+- ✅ DB 스키마 완성 *(Mock Repository)*
 - ✅ Health Check 동작
 
 ### Milestone 2: 병렬 호출 (Week 5)
@@ -311,10 +311,10 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정
 5. 로깅 시스템
 
 **완료 조건**:
-- [ ] Health Check API 동작
-- [ ] DB 연결 정상
-- [ ] Redis 캐시 동작
-- [ ] 구조화된 로그 출력
+- [x] Health Check API 동작
+- [x] DB 연결 정상 *(Mock Repository로 구현)*
+- [x] Redis 캐시 동작
+- [x] 구조화된 로그 출력
 
 ---
 
@@ -583,11 +583,11 @@ echo "GET http://192.168.1.101:10019/api/users" | \
 ## 📌 체크리스트
 
 ### 개발 시작 전
-- [ ] 인프라 요구사항 확인
+- [x] 인프라 요구사항 확인
 - [ ] 레거시/모던 API 명세 확보
-- [ ] OracleDB 접속 정보 확보
-- [ ] 개발 환경 구축 (Go 1.21+)
-- [ ] Git Repository 생성
+- [x] OracleDB 접속 정보 확보 *(Mock Repository로 대체)*
+- [x] 개발 환경 구축 (Go 1.25.1)
+- [x] Git Repository 생성
 
 ### 개발 중
 - [ ] 코드 리뷰 프로세스
