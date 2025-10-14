@@ -6,14 +6,15 @@ import (
 
 // Response는 API Bridge를 통과하는 응답을 나타냅니다.
 type Response struct {
-	RequestID  string            // 원본 요청 ID (Trace ID)
-	StatusCode int               // HTTP 상태 코드
-	Headers    map[string]string // 응답 헤더
-	Body       []byte            // 응답 본문
-	Timestamp  time.Time         // 응답 시간
-	Duration   time.Duration     // 처리 시간
-	Source     string            // 응답 소스 (예: external-api, cache, database)
-	Error      error             // 에러 (있는 경우)
+	RequestID   string            // 원본 요청 ID (Trace ID)
+	StatusCode  int               // HTTP 상태 코드
+	Headers     map[string]string // 응답 헤더
+	Body        []byte            // 응답 본문
+	ContentType string            // 응답 콘텐츠 타입
+	Timestamp   time.Time         // 응답 시간
+	Duration    time.Duration     // 처리 시간
+	Source      string            // 응답 소스 (예: external-api, cache, database)
+	Error       error             // 에러 (있는 경우)
 }
 
 // NewResponse는 새로운 Response를 생성합니다.

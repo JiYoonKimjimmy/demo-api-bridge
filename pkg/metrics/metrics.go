@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"demo-api-bridge/internal/core/port"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -101,7 +102,7 @@ func (m *prometheusMetrics) RecordRequest(method, path string, statusCode int, d
 	m.httpRequestsTotal.WithLabelValues(
 		method,
 		path,
-		prometheus.IntToString(statusCode),
+		strconv.Itoa(statusCode),
 	).Inc()
 
 	m.httpRequestDuration.WithLabelValues(

@@ -14,6 +14,8 @@ type Request struct {
 	Body        []byte            // 요청 본문
 	Timestamp   time.Time         // 요청 시간
 	ClientIP    string            // 클라이언트 IP
+	SourceIP    string            // 소스 IP (ClientIP와 동일)
+	UserAgent   string            // User Agent
 }
 
 // NewRequest는 새로운 Request를 생성합니다.
