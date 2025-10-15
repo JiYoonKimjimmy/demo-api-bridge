@@ -13,8 +13,9 @@ import (
 
 // httpClientAdapter는 HTTP 기반 ExternalAPIClient 구현체입니다.
 type httpClientAdapter struct {
-	client  *http.Client
-	timeout time.Duration
+	client         *http.Client
+	timeout        time.Duration
+	circuitBreaker port.CircuitBreakerService
 }
 
 // NewHTTPClientAdapter는 새로운 HTTP 클라이언트 어댑터를 생성합니다.
@@ -29,6 +30,22 @@ func NewHTTPClientAdapter(timeout time.Duration) port.ExternalAPIClient {
 			},
 		},
 		timeout: timeout,
+	}
+}
+
+// NewHTTPClientAdapterWithCircuitBreaker는 Circuit Breaker가 포함된 HTTP 클라이언트 어댑터를 생성합니다.
+func NewHTTPClientAdapterWithCircuitBreaker(timeout time.Duration, circuitBreaker port.CircuitBreakerService) port.ExternalAPIClient {
+	return &httpClientAdapter{
+		client: &http.Client{
+			Timeout: timeout,
+			Transport: &http.Transport{
+				MaxIdleConns:        100,
+				MaxIdleConnsPerHost: 10,
+				IdleConnTimeout:     90 * time.Second,
+			},
+		},
+		timeout:        timeout,
+		circuitBreaker: circuitBreaker,
 	}
 }
 
@@ -83,8 +100,34 @@ func (h *httpClientAdapter) SendRequest(ctx context.Context, endpoint *domain.AP
 	return response, nil
 }
 
-// SendWithRetry는 재시도 로직을 포함하여 외부 API에 요청을 전송합니다.
+// SendWithRetry는 재시도 로직과 Circuit Breaker를 포함하여 외부 API에 요청을 전송합니다.
 func (h *httpClientAdapter) SendWithRetry(ctx context.Context, endpoint *domain.APIEndpoint, request *domain.Request) (*domain.Response, error) {
+	// Circuit Breaker가 있는 경우 사용
+	if h.circuitBreaker != nil {
+		breakerName := fmt.Sprintf("http-client-%s", endpoint.ID)
+		config := domain.NewCircuitBreakerConfig(breakerName)
+
+		result, err := h.circuitBreaker.Execute(ctx, breakerName, config, func() (interface{}, error) {
+			return h.sendWithRetryInternal(ctx, endpoint, request)
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if response, ok := result.(*domain.Response); ok {
+			return response, nil
+		}
+
+		return nil, fmt.Errorf("unexpected result type from circuit breaker")
+	}
+
+	// Circuit Breaker가 없는 경우 기본 재시도 로직 사용
+	return h.sendWithRetryInternal(ctx, endpoint, request)
+}
+
+// sendWithRetryInternal은 내부 재시도 로직을 수행합니다.
+func (h *httpClientAdapter) sendWithRetryInternal(ctx context.Context, endpoint *domain.APIEndpoint, request *domain.Request) (*domain.Response, error) {
 	var lastErr error
 	attempt := 0
 

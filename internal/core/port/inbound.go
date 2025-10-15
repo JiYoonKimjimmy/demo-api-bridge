@@ -3,6 +3,8 @@ package port
 import (
 	"context"
 	"demo-api-bridge/internal/core/domain"
+
+	"github.com/sony/gobreaker"
 )
 
 // BridgeService는 API Bridge의 핵심 비즈니스 로직을 정의하는 인바운드 포트입니다.
@@ -64,4 +66,43 @@ type HealthCheckService interface {
 
 	// GetServiceStatus는 상세한 서비스 상태 정보를 반환합니다.
 	GetServiceStatus(ctx context.Context) map[string]interface{}
+}
+
+// OrchestrationService는 API 오케스트레이션을 담당하는 인바운드 포트입니다.
+type OrchestrationService interface {
+	// ProcessParallelRequest는 레거시와 모던 API를 병렬로 호출하고 결과를 비교합니다.
+	ProcessParallelRequest(ctx context.Context, request *domain.Request, legacyEndpoint, modernEndpoint *domain.APIEndpoint) (*domain.APIComparison, error)
+
+	// GetOrchestrationRule은 오케스트레이션 규칙을 조회합니다.
+	GetOrchestrationRule(ctx context.Context, routingRuleID string) (*domain.OrchestrationRule, error)
+
+	// CreateOrchestrationRule은 새로운 오케스트레이션 규칙을 생성합니다.
+	CreateOrchestrationRule(ctx context.Context, rule *domain.OrchestrationRule) error
+
+	// UpdateOrchestrationRule은 오케스트레이션 규칙을 수정합니다.
+	UpdateOrchestrationRule(ctx context.Context, rule *domain.OrchestrationRule) error
+
+	// EvaluateTransition는 전환 가능성을 평가합니다.
+	EvaluateTransition(ctx context.Context, rule *domain.OrchestrationRule) (bool, error)
+
+	// ExecuteTransition는 API 모드를 전환합니다.
+	ExecuteTransition(ctx context.Context, rule *domain.OrchestrationRule, newMode domain.APIMode) error
+}
+
+// CircuitBreakerService는 Circuit Breaker 관리를 담당하는 인바운드 포트입니다.
+type CircuitBreakerService interface {
+	// GetOrCreateBreaker는 이름에 해당하는 Circuit Breaker를 가져오거나 생성합니다.
+	GetOrCreateBreaker(name string, config domain.CircuitBreakerConfig) *gobreaker.CircuitBreaker
+
+	// Execute는 Circuit Breaker를 통해 함수를 실행합니다.
+	Execute(ctx context.Context, breakerName string, config domain.CircuitBreakerConfig, fn func() (interface{}, error)) (interface{}, error)
+
+	// GetBreakerInfo는 Circuit Breaker의 현재 상태 정보를 반환합니다.
+	GetBreakerInfo(breakerName string) (*domain.CircuitBreakerInfo, error)
+
+	// GetAllBreakerInfos는 모든 Circuit Breaker의 상태 정보를 반환합니다.
+	GetAllBreakerInfos() map[string]*domain.CircuitBreakerInfo
+
+	// ResetBreaker는 Circuit Breaker를 리셋합니다.
+	ResetBreaker(breakerName string) error
 }

@@ -233,3 +233,8 @@ func (m *NoOpMetrics) RecordCacheHit(hit bool)                                  
 func (m *NoOpMetrics) IncrementCounter(name string, labels map[string]string)                      {}
 func (m *NoOpMetrics) RecordGauge(name string, value float64, labels map[string]string)            {}
 func (m *NoOpMetrics) RecordHistogram(name string, value float64, labels map[string]string)        {}
+
+// NewMetricsCollector는 새로운 메트릭 수집기를 생성합니다.
+func NewMetricsCollector() port.MetricsCollector {
+	return New("api_bridge")
+}

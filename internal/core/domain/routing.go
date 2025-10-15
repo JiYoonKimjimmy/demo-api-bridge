@@ -2,21 +2,29 @@ package domain
 
 import (
 	"regexp"
+	"time"
 )
 
 // RoutingRule은 요청을 적절한 엔드포인트로 라우팅하는 규칙을 나타냅니다.
 type RoutingRule struct {
-	ID            string         // 규칙 고유 ID
-	Name          string         // 규칙 이름
-	PathPattern   string         // 경로 패턴 (예: /api/v1/users/*)
-	MethodPattern string         // HTTP 메서드 패턴 (예: GET, POST, *)
-	EndpointID    string         // 대상 엔드포인트 ID
-	Priority      int            // 우선순위 (낮을수록 먼저 매칭)
-	IsActive      bool           // 활성화 여부
-	CacheEnabled  bool           // 캐시 사용 여부
-	CacheTTL      int            // 캐시 TTL (초)
-	Description   string         // 설명
-	compiledRegex *regexp.Regexp // 컴파일된 정규식 (private)
+	ID               string            // 규칙 고유 ID
+	Name             string            // 규칙 이름
+	PathPattern      string            // 경로 패턴 (예: /api/v1/users/*)
+	MethodPattern    string            // HTTP 메서드 패턴 (예: GET, POST, *)
+	Method           string            // HTTP 메서드
+	Headers          map[string]string // 헤더 매칭
+	QueryParams      map[string]string // 쿼리 파라미터 매칭
+	EndpointID       string            // 대상 엔드포인트 ID
+	LegacyEndpointID string            // 레거시 엔드포인트 ID
+	ModernEndpointID string            // 모던 엔드포인트 ID
+	Priority         int               // 우선순위 (낮을수록 먼저 매칭)
+	IsActive         bool              // 활성화 여부
+	CacheEnabled     bool              // 캐시 사용 여부
+	CacheTTL         int               // 캐시 TTL (초)
+	Description      string            // 설명
+	CreatedAt        time.Time         // 생성 시간
+	UpdatedAt        time.Time         // 수정 시간
+	compiledRegex    *regexp.Regexp    // 컴파일된 정규식 (private)
 }
 
 // NewRoutingRule은 새로운 RoutingRule을 생성합니다.

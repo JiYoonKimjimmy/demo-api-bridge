@@ -10,12 +10,15 @@ type APIEndpoint struct {
 	Name        string        // 엔드포인트 이름
 	BaseURL     string        // 기본 URL (예: https://api.example.com)
 	Path        string        // 경로 (예: /v1/users)
+	HealthURL   string        // 헬스 체크 URL
 	Method      string        // HTTP 메서드
 	Timeout     time.Duration // 타임아웃
 	RetryCount  int           // 재시도 횟수
 	IsActive    bool          // 활성화 여부
 	Priority    int           // 우선순위 (여러 엔드포인트가 있을 경우)
 	Description string        // 설명
+	CreatedAt   time.Time     // 생성 시간
+	UpdatedAt   time.Time     // 수정 시간
 }
 
 // NewAPIEndpoint는 새로운 APIEndpoint를 생성합니다.

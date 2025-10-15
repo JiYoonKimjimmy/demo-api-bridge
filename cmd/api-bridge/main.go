@@ -9,6 +9,15 @@ import (
 	"syscall"
 	"time"
 
+	httpadapter "demo-api-bridge/internal/adapter/inbound/http"
+	"demo-api-bridge/internal/adapter/outbound/cache"
+	"demo-api-bridge/internal/adapter/outbound/database"
+	"demo-api-bridge/internal/adapter/outbound/httpclient"
+	"demo-api-bridge/internal/core/port"
+	"demo-api-bridge/internal/core/service"
+	"demo-api-bridge/pkg/logger"
+	"demo-api-bridge/pkg/metrics"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,67 +30,32 @@ const (
 func main() {
 	fmt.Printf("Starting %s v%s...\n", serviceName, version)
 
+	// 의존성 초기화
+	dependencies := initializeDependencies()
+	defer cleanup(dependencies)
+
 	// Gin 모드 설정
 	gin.SetMode(gin.ReleaseMode)
 
 	// 라우터 초기화
 	router := gin.New()
-	router.Use(gin.Logger())
+
+	// 미들웨어 설정
 	router.Use(gin.Recovery())
+	router.Use(httpadapter.NewLoggingMiddleware(dependencies.Logger))
+	router.Use(httpadapter.NewMetricsMiddleware(dependencies.Metrics))
+	router.Use(httpadapter.NewCORSMiddleware())
+	router.Use(httpadapter.NewRateLimitMiddleware())
 
-	// Health Check
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "healthy",
-			"service":   serviceName,
-			"version":   version,
-			"timestamp": time.Now().Format(time.RFC3339),
-			"uptime":    "N/A",
-		})
-	})
+	// HTTP 핸들러 설정
+	httpHandler := httpadapter.NewHandler(
+		dependencies.BridgeService,
+		dependencies.HealthService,
+		dependencies.Logger,
+	)
 
-	// Readiness Check
-	router.GET("/ready", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "ready",
-			"ready":  true,
-			"checks": map[string]string{
-				"database": "ok",
-				"cache":    "ok",
-			},
-			"timestamp": time.Now().Format(time.RFC3339),
-		})
-	})
-
-	// Status
-	router.GET("/api/v1/status", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service":     serviceName,
-			"version":     version,
-			"timestamp":   time.Now().Format(time.RFC3339),
-			"uptime":      "N/A",
-			"environment": "development",
-			"metrics":     map[string]interface{}{"requests": 0},
-		})
-	})
-
-	// API Bridge - 모든 요청 처리 (status 제외)
-	router.Any("/api/v1/bridge/*path", func(c *gin.Context) {
-		path := c.Param("path")
-		method := c.Request.Method
-
-		fmt.Printf("Processing %s request to %s\n", method, path)
-
-		// 간단한 응답
-		c.JSON(http.StatusOK, gin.H{
-			"message":   "API Bridge is working",
-			"method":    method,
-			"path":      path,
-			"timestamp": time.Now().Format(time.RFC3339),
-			"service":   serviceName,
-			"version":   version,
-		})
-	})
+	// 라우트 설정
+	setupRoutes(router, httpHandler)
 
 	// 포트 설정
 	port := os.Getenv("PORT")
@@ -128,4 +102,98 @@ func main() {
 	}
 
 	fmt.Println("Server exited")
+}
+
+// Dependencies는 애플리케이션의 모든 의존성을 포함합니다.
+type Dependencies struct {
+	Logger            port.Logger
+	Metrics           port.MetricsCollector
+	Cache             port.CacheRepository
+	RoutingRepo       port.RoutingRepository
+	EndpointRepo      port.EndpointRepository
+	OrchestrationRepo port.OrchestrationRepository
+	ComparisonRepo    port.ComparisonRepository
+	CircuitBreaker    port.CircuitBreakerService
+	ExternalAPI       port.ExternalAPIClient
+	BridgeService     port.BridgeService
+	HealthService     port.HealthCheckService
+}
+
+// initializeDependencies는 모든 의존성을 초기화합니다.
+func initializeDependencies() *Dependencies {
+	// 로거 초기화
+	log := logger.NewLogger()
+
+	// 메트릭 초기화
+	metricsCollector := metrics.NewMetricsCollector()
+
+	// 캐시 초기화 (Mock)
+	cacheRepo := cache.NewMockCacheRepository()
+
+	// 데이터베이스 리포지토리 초기화 (Mock)
+	routingRepo := database.NewMockRoutingRepository()
+	endpointRepo := database.NewMockEndpointRepository()
+	orchestrationRepo := database.NewMockOrchestrationRepository()
+	comparisonRepo := database.NewMockComparisonRepository()
+
+	// Circuit Breaker 서비스 초기화
+	circuitBreakerService := service.NewCircuitBreakerService(log, metricsCollector)
+
+	// HTTP 클라이언트 초기화 (Circuit Breaker 포함)
+	httpClient := httpclient.NewHTTPClientAdapterWithCircuitBreaker(30*time.Second, circuitBreakerService)
+
+	// 서비스 초기화
+	healthService := service.NewHealthCheckService(routingRepo, endpointRepo, cacheRepo, log)
+	orchestrationService := service.NewOrchestrationService(
+		orchestrationRepo,
+		comparisonRepo,
+		httpClient,
+		log,
+		metricsCollector,
+	)
+	bridgeService := service.NewBridgeService(
+		routingRepo,
+		endpointRepo,
+		orchestrationRepo,
+		comparisonRepo,
+		orchestrationService,
+		httpClient,
+		cacheRepo,
+		log,
+		metricsCollector,
+	)
+
+	return &Dependencies{
+		Logger:            log,
+		Metrics:           metricsCollector,
+		Cache:             cacheRepo,
+		RoutingRepo:       routingRepo,
+		EndpointRepo:      endpointRepo,
+		OrchestrationRepo: orchestrationRepo,
+		ComparisonRepo:    comparisonRepo,
+		CircuitBreaker:    circuitBreakerService,
+		ExternalAPI:       httpClient,
+		BridgeService:     bridgeService,
+		HealthService:     healthService,
+	}
+}
+
+// setupRoutes는 라우트를 설정합니다.
+func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
+	// Health Check
+	router.GET("/health", handler.HealthCheck)
+	router.GET("/ready", handler.ReadinessCheck)
+	router.GET("/api/v1/status", handler.Status)
+
+	// API Bridge - 모든 요청 처리
+	router.Any("/api/v1/bridge/*path", handler.ProcessBridgeRequest)
+
+	// Metrics
+	router.GET("/metrics", handler.Metrics)
+}
+
+// cleanup은 리소스를 정리합니다.
+func cleanup(deps *Dependencies) {
+	// HTTP 클라이언트 정리는 필요시 구현
+	// 현재 Mock 구현체는 정리가 필요하지 않음
 }

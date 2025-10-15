@@ -122,3 +122,48 @@ type MetricsCollector interface {
 	// RecordHistogram은 히스토그램 값을 기록합니다.
 	RecordHistogram(name string, value float64, labels map[string]string)
 }
+
+// OrchestrationRepository는 오케스트레이션 규칙 저장소를 담당하는 아웃바운드 포트입니다.
+type OrchestrationRepository interface {
+	// Create는 오케스트레이션 규칙을 생성합니다.
+	Create(ctx context.Context, rule *domain.OrchestrationRule) error
+
+	// Update는 오케스트레이션 규칙을 수정합니다.
+	Update(ctx context.Context, rule *domain.OrchestrationRule) error
+
+	// Delete는 오케스트레이션 규칙을 삭제합니다.
+	Delete(ctx context.Context, ruleID string) error
+
+	// FindByID는 ID로 오케스트레이션 규칙을 조회합니다.
+	FindByID(ctx context.Context, ruleID string) (*domain.OrchestrationRule, error)
+
+	// FindByRoutingRuleID는 라우팅 규칙 ID로 오케스트레이션 규칙을 조회합니다.
+	FindByRoutingRuleID(ctx context.Context, routingRuleID string) (*domain.OrchestrationRule, error)
+
+	// FindAll은 모든 오케스트레이션 규칙을 조회합니다.
+	FindAll(ctx context.Context) ([]*domain.OrchestrationRule, error)
+
+	// FindActive는 활성화된 오케스트레이션 규칙만 조회합니다.
+	FindActive(ctx context.Context) ([]*domain.OrchestrationRule, error)
+}
+
+// ComparisonRepository는 API 비교 결과 저장소를 담당하는 아웃바운드 포트입니다.
+type ComparisonRepository interface {
+	// SaveComparison은 API 비교 결과를 저장합니다.
+	SaveComparison(ctx context.Context, comparison *domain.APIComparison) error
+
+	// GetRecentComparisons는 최근 비교 결과들을 조회합니다.
+	GetRecentComparisons(ctx context.Context, routingRuleID string, limit int) ([]*domain.APIComparison, error)
+
+	// GetComparisonStatistics는 비교 통계를 조회합니다.
+	GetComparisonStatistics(ctx context.Context, routingRuleID string, from, to time.Time) (*ComparisonStatistics, error)
+}
+
+// ComparisonStatistics는 비교 통계를 나타냅니다.
+type ComparisonStatistics struct {
+	RoutingRuleID     string    // 라우팅 규칙 ID
+	TotalComparisons  int       // 총 비교 횟수
+	SuccessfulMatches int       // 성공적인 일치 횟수
+	AverageMatchRate  float64   // 평균 일치율
+	LastComparison    time.Time // 마지막 비교 시점
+}

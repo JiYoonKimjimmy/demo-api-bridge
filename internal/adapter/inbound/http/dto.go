@@ -22,9 +22,9 @@ type CreateEndpointRequest struct {
 	RetryCount  int    `json:"retry_count"`
 }
 
-// ToDomain는 CreateEndpointRequest를 Domain Endpoint로 변환합니다.
-func (req *CreateEndpointRequest) ToDomain() *domain.Endpoint {
-	return &domain.Endpoint{
+// ToDomain는 CreateEndpointRequest를 Domain APIEndpoint로 변환합니다.
+func (req *CreateEndpointRequest) ToDomain() *domain.APIEndpoint {
+	return &domain.APIEndpoint{
 		Name:        req.Name,
 		Description: req.Description,
 		BaseURL:     req.BaseURL,
@@ -47,7 +47,7 @@ type UpdateEndpointRequest struct {
 }
 
 // ApplyTo는 UpdateEndpointRequest의 값을 Domain Endpoint에 적용합니다.
-func (req *UpdateEndpointRequest) ApplyTo(endpoint *domain.Endpoint) {
+func (req *UpdateEndpointRequest) ApplyTo(endpoint *domain.APIEndpoint) {
 	if req.Name != nil {
 		endpoint.Name = *req.Name
 	}
@@ -158,7 +158,7 @@ func (req *UpdateRoutingRuleRequest) ApplyTo(rule *domain.RoutingRule) {
 
 // EndpointReference는 엔드포인트 참조를 위한 DTO입니다.
 type EndpointReference struct {
-	ID   int64  `json:"id" binding:"required"`
+	ID   string `json:"id" binding:"required"`
 	Name string `json:"name,omitempty"`
 }
 
@@ -166,7 +166,7 @@ type EndpointReference struct {
 
 // EndpointResponse는 엔드포인트 응답 DTO입니다.
 type EndpointResponse struct {
-	ID          int64     `json:"id"`
+	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	BaseURL     string    `json:"base_url"`
@@ -179,7 +179,7 @@ type EndpointResponse struct {
 }
 
 // FromDomain는 Domain Endpoint를 EndpointResponse로 변환합니다.
-func (resp *EndpointResponse) FromDomain(endpoint *domain.Endpoint) {
+func (resp *EndpointResponse) FromDomain(endpoint *domain.APIEndpoint) {
 	resp.ID = endpoint.ID
 	resp.Name = endpoint.Name
 	resp.Description = endpoint.Description
@@ -194,7 +194,7 @@ func (resp *EndpointResponse) FromDomain(endpoint *domain.Endpoint) {
 
 // RoutingRuleResponse는 라우팅 규칙 응답 DTO입니다.
 type RoutingRuleResponse struct {
-	ID             int64              `json:"id"`
+	ID             string             `json:"id"`
 	Name           string             `json:"name"`
 	Description    string             `json:"description"`
 	PathPattern    string             `json:"path_pattern"`
@@ -224,12 +224,12 @@ func (resp *RoutingRuleResponse) FromDomain(rule *domain.RoutingRule) {
 	resp.UpdatedAt = rule.UpdatedAt
 
 	// 엔드포인트 참조 설정 (실제로는 엔드포인트 정보를 조회해야 함)
-	if rule.LegacyEndpointID > 0 {
+	if rule.LegacyEndpointID != "" {
 		resp.LegacyEndpoint = &EndpointReference{
 			ID: rule.LegacyEndpointID,
 		}
 	}
-	if rule.ModernEndpointID > 0 {
+	if rule.ModernEndpointID != "" {
 		resp.ModernEndpoint = &EndpointReference{
 			ID: rule.ModernEndpointID,
 		}
@@ -286,14 +286,14 @@ type APIResponse struct {
 // === 유틸리티 함수 ===
 
 // ToEndpointResponse는 Domain Endpoint를 EndpointResponse로 변환합니다.
-func ToEndpointResponse(endpoint *domain.Endpoint) *EndpointResponse {
+func ToEndpointResponse(endpoint *domain.APIEndpoint) *EndpointResponse {
 	resp := &EndpointResponse{}
 	resp.FromDomain(endpoint)
 	return resp
 }
 
 // ToEndpointResponseList는 Domain Endpoint 리스트를 EndpointResponse 리스트로 변환합니다.
-func ToEndpointResponseList(endpoints []*domain.Endpoint) []*EndpointResponse {
+func ToEndpointResponseList(endpoints []*domain.APIEndpoint) []*EndpointResponse {
 	responses := make([]*EndpointResponse, len(endpoints))
 	for i, endpoint := range endpoints {
 		responses[i] = ToEndpointResponse(endpoint)
@@ -318,28 +318,23 @@ func ToRoutingRuleResponseList(rules []*domain.RoutingRule) []*RoutingRuleRespon
 }
 
 // ToHealthResponse는 Domain HealthStatus를 HealthResponse로 변환합니다.
-func ToHealthResponse(status *domain.HealthStatus) *HealthResponse {
+func ToHealthResponse(status domain.HealthStatus) *HealthResponse {
 	return &HealthResponse{
-		Status:    status.Status,
-		Service:   status.ServiceName,
-		Version:   status.Version,
-		Timestamp: status.Timestamp.Format(time.RFC3339),
-		Uptime:    status.Uptime,
+		Status:    string(status),
+		Service:   "api-bridge",
+		Version:   "0.1.0",
+		Timestamp: time.Now().Format(time.RFC3339),
+		Uptime:    "0s",
 	}
 }
 
 // ToReadinessResponse는 Domain ReadinessStatus를 응답으로 변환합니다.
-func ToReadinessResponse(status *domain.ReadinessStatus) gin.H {
-	checks := make(map[string]string)
-	for name, check := range status.Checks {
-		checks[name] = check
-	}
-
+func ToReadinessResponse(status domain.ReadinessStatus) gin.H {
 	return gin.H{
-		"status":    status.Status,
-		"ready":     status.Ready,
-		"checks":    checks,
-		"timestamp": status.Timestamp.Format(time.RFC3339),
+		"status":    string(status),
+		"ready":     status == domain.READY,
+		"checks":    make(map[string]string),
+		"timestamp": time.Now().Format(time.RFC3339),
 	}
 }
 
@@ -349,7 +344,7 @@ func ToStatusResponse(status *domain.ServiceStatus) *StatusResponse {
 		Service:     status.ServiceName,
 		Version:     status.Version,
 		Timestamp:   status.Timestamp.Format(time.RFC3339),
-		Uptime:      status.Uptime,
+		Uptime:      status.Uptime.String(),
 		Environment: status.Environment,
 		Metrics:     status.Metrics,
 	}

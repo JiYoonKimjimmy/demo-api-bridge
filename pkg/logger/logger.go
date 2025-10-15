@@ -170,3 +170,8 @@ func (l *SimpleLogger) log(level, msg string, fields ...interface{}) {
 	}
 	fmt.Fprintln(os.Stdout)
 }
+
+// NewLogger는 간단한 로거를 생성합니다.
+func NewLogger() port.Logger {
+	return NewSimpleLogger("info")
+}
