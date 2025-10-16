@@ -1,0 +1,65 @@
+# API Bridge 실제 운영 설정 파일
+
+server:
+  port: 10019
+  mode: release  # debug, release
+  read_timeout: 10s
+  write_timeout: 10s
+  max_header_bytes: 1048576  # 1MB
+
+log:
+  level: info  # debug, info, warn, error
+  format: json  # json, console
+  output: stdout  # stdout, file
+  file_path: ./logs/app.log
+
+# Oracle Database 설정
+database:
+  host: db.konadc.com
+  port: 15321
+  sid: kmdbp
+  username: "map"
+  password: "StgMAP1104#"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+  connection_timeout: 10s
+
+# Redis Cache 설정 (외부 접근 가능한 Redis 서버)
+redis:
+  host: dev3.konadc.com
+  port: 6379
+  password: "123456"
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
+  dial_timeout: 5s
+  read_timeout: 3s
+  write_timeout: 3s
+
+# 외부 API 설정
+external_api:
+  base_url: https://api.example.com
+  timeout: 30s
+  retry_count: 3
+  retry_delay: 1s
+  max_retry_delay: 10s
+  retry_backoff_multiplier: 2.0
+
+# Circuit Breaker 설정
+circuit_breaker:
+  max_requests: 5
+  interval: 10s
+  timeout: 5s
+
+# 모니터링
+metrics:
+  enabled: true
+  port: 9090
+  path: /metrics
+
+# 캐시 설정
+cache:
+  default_ttl: 300s  # 5분
+  routing_rules_ttl: 3600s  # 1시간
+  api_response_ttl: 600s  # 10분

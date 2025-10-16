@@ -31,6 +31,21 @@ test: ## 테스트 실행
 test-coverage: test ## 테스트 커버리지 확인
 	$(GO) tool cover -html=coverage.out
 
+test-db: ## OracleDB 연결 테스트
+	$(GO) run ./cmd/test-db/main.go
+
+test-redis: ## Redis 연결 테스트
+	$(GO) test -v ./test/redis_test.go
+
+test-all-db: ## 모든 데이터베이스 연결 테스트
+	$(GO) run ./cmd/test-all/main.go
+
+test-unit: ## 단위 테스트만 실행 (DB 연결 제외)
+	$(GO) test -v -race -coverprofile=coverage.out ./pkg/... ./internal/...
+
+test-integration: ## 통합 테스트 실행 (DB 연결 포함)
+	$(GO) test -v -race -coverprofile=coverage.out ./test/...
+
 lint: ## 린트 실행
 	golangci-lint run ./...
 
