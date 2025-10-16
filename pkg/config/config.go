@@ -118,6 +118,11 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &config, nil
 }
 
+// GetDefaultConfig는 기본 설정을 반환합니다.
+func GetDefaultConfig() *Config {
+	return getDefaultConfig()
+}
+
 // getDefaultConfig는 기본 설정을 반환합니다.
 func getDefaultConfig() *Config {
 	return &Config{

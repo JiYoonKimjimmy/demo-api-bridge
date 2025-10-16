@@ -15,10 +15,12 @@ import (
 	"demo-api-bridge/internal/adapter/outbound/httpclient"
 	"demo-api-bridge/internal/core/port"
 	"demo-api-bridge/internal/core/service"
+	"demo-api-bridge/pkg/config"
 	"demo-api-bridge/pkg/logger"
 	"demo-api-bridge/pkg/metrics"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -30,8 +32,20 @@ const (
 func main() {
 	fmt.Printf("Starting %s v%s...\n", serviceName, version)
 
+	// 설정 로드
+	cfg, err := config.LoadConfig("config/config.yaml")
+	if err != nil {
+		fmt.Printf("Failed to load config: %v\n", err)
+		fmt.Println("Using default configuration...")
+		cfg = config.GetDefaultConfig()
+	}
+
 	// 의존성 초기화
-	dependencies := initializeDependencies()
+	dependencies, err := initializeDependencies(cfg)
+	if err != nil {
+		fmt.Printf("Failed to initialize dependencies: %v\n", err)
+		os.Exit(1)
+	}
 	defer cleanup(dependencies)
 
 	// Gin 모드 설정
@@ -117,30 +131,88 @@ type Dependencies struct {
 	ExternalAPI       port.ExternalAPIClient
 	BridgeService     port.BridgeService
 	HealthService     port.HealthCheckService
+	RedisClient       *redis.Client
 }
 
 // initializeDependencies는 모든 의존성을 초기화합니다.
-func initializeDependencies() *Dependencies {
+func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 	// 로거 초기화
 	log := logger.NewLogger()
 
 	// 메트릭 초기화
 	metricsCollector := metrics.NewMetricsCollector()
 
-	// 캐시 초기화 (Mock)
-	cacheRepo := cache.NewMockCacheRepository()
+	// Redis 클라이언트 초기화
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:         cfg.Redis.GetRedisAddr(),
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     cfg.Redis.PoolSize,
+		MinIdleConns: cfg.Redis.MinIdleConns,
+		DialTimeout:  cfg.Redis.DialTimeout,
+		ReadTimeout:  cfg.Redis.ReadTimeout,
+		WriteTimeout: cfg.Redis.WriteTimeout,
+	})
 
-	// 데이터베이스 리포지토리 초기화 (Mock)
-	routingRepo := database.NewMockRoutingRepository()
-	endpointRepo := database.NewMockEndpointRepository()
-	orchestrationRepo := database.NewMockOrchestrationRepository()
-	comparisonRepo := database.NewMockComparisonRepository()
+	// Redis 연결 테스트
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		log.Warn(fmt.Sprintf("Failed to connect to Redis: %v", err))
+		log.Info("Using Mock cache repository instead")
+	}
+
+	// 캐시 리포지토리 초기화 (Redis 또는 Mock)
+	var cacheRepo port.CacheRepository
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		cacheRepo = cache.NewMockCacheRepository()
+	} else {
+		cacheRepo = cache.NewRedisAdapterWithClient(redisClient)
+		log.Info("✅ Redis cache repository initialized")
+	}
+
+	// 데이터베이스 리포지토리 초기화 (OracleDB 또는 Mock)
+	var routingRepo port.RoutingRepository
+	var endpointRepo port.EndpointRepository
+	var orchestrationRepo port.OrchestrationRepository
+	var comparisonRepo port.ComparisonRepository
+
+	// OracleDB 연결 시도
+	oracleRoutingRepo, err := database.NewOracleRoutingRepository(&cfg.Database)
+	if err != nil {
+		log.Warn(fmt.Sprintf("Failed to connect to OracleDB: %v", err))
+		log.Info("Using Mock database repositories instead")
+
+		// Mock 리포지토리 사용
+		routingRepo = database.NewMockRoutingRepository()
+		endpointRepo = database.NewMockEndpointRepository()
+		orchestrationRepo = database.NewMockOrchestrationRepository()
+		comparisonRepo = database.NewMockComparisonRepository()
+	} else {
+		// OracleDB 리포지토리 사용
+		routingRepo = oracleRoutingRepo
+
+		oracleEndpointRepo, err := database.NewOracleEndpointRepository(&cfg.Database)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Failed to create Oracle endpoint repository: %v", err))
+			endpointRepo = database.NewMockEndpointRepository()
+		} else {
+			endpointRepo = oracleEndpointRepo
+		}
+
+		// Orchestration과 Comparison은 아직 OracleDB 구현이 없으므로 Mock 사용
+		orchestrationRepo = database.NewMockOrchestrationRepository()
+		comparisonRepo = database.NewMockComparisonRepository()
+
+		log.Info("✅ OracleDB repositories initialized")
+	}
 
 	// Circuit Breaker 서비스 초기화
 	circuitBreakerService := service.NewCircuitBreakerService(log, metricsCollector)
 
 	// HTTP 클라이언트 초기화 (Circuit Breaker 포함)
-	httpClient := httpclient.NewHTTPClientAdapterWithCircuitBreaker(30*time.Second, circuitBreakerService)
+	httpClient := httpclient.NewHTTPClientAdapterWithCircuitBreaker(cfg.ExternalAPI.Timeout, circuitBreakerService)
 
 	// 서비스 초기화
 	healthService := service.NewHealthCheckService(routingRepo, endpointRepo, cacheRepo, log)
@@ -175,7 +247,8 @@ func initializeDependencies() *Dependencies {
 		ExternalAPI:       httpClient,
 		BridgeService:     bridgeService,
 		HealthService:     healthService,
-	}
+		RedisClient:       redisClient,
+	}, nil
 }
 
 // setupRoutes는 라우트를 설정합니다.
@@ -194,6 +267,31 @@ func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
 
 // cleanup은 리소스를 정리합니다.
 func cleanup(deps *Dependencies) {
-	// HTTP 클라이언트 정리는 필요시 구현
-	// 현재 Mock 구현체는 정리가 필요하지 않음
+	// Redis 클라이언트 정리
+	if deps.RedisClient != nil {
+		if err := deps.RedisClient.Close(); err != nil {
+			fmt.Printf("Failed to close Redis client: %v\n", err)
+		} else {
+			fmt.Println("✅ Redis client closed")
+		}
+	}
+
+	// 데이터베이스 리포지토리 정리 (Close 메서드가 있는 경우)
+	if closer, ok := deps.RoutingRepo.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			fmt.Printf("Failed to close routing repository: %v\n", err)
+		} else {
+			fmt.Println("✅ Routing repository closed")
+		}
+	}
+
+	if closer, ok := deps.EndpointRepo.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			fmt.Printf("Failed to close endpoint repository: %v\n", err)
+		} else {
+			fmt.Println("✅ Endpoint repository closed")
+		}
+	}
+
+	fmt.Println("✅ Cleanup completed")
 }
