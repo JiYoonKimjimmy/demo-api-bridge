@@ -31,6 +31,7 @@ const (
 
 func main() {
 	fmt.Printf("Starting %s v%s...\n", serviceName, version)
+	fmt.Println("DEBUG: Main function started")
 
 	// 설정 로드
 	cfg, err := config.LoadConfig("config/config.yaml")
@@ -41,11 +42,13 @@ func main() {
 	}
 
 	// 의존성 초기화
+	fmt.Println("🔧 Initializing dependencies...")
 	dependencies, err := initializeDependencies(cfg)
 	if err != nil {
-		fmt.Printf("Failed to initialize dependencies: %v\n", err)
+		fmt.Printf("❌ Failed to initialize dependencies: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Println("✅ Dependencies initialized successfully")
 	defer cleanup(dependencies)
 
 	// Gin 모드 설정
@@ -201,9 +204,23 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 			endpointRepo = oracleEndpointRepo
 		}
 
-		// Orchestration과 Comparison은 아직 OracleDB 구현이 없으므로 Mock 사용
-		orchestrationRepo = database.NewMockOrchestrationRepository()
-		comparisonRepo = database.NewMockComparisonRepository()
+		// Orchestration Repository OracleDB 구현
+		oracleOrchestrationRepo, err := database.NewOracleOrchestrationRepository(&cfg.Database)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Failed to create Oracle orchestration repository: %v", err))
+			orchestrationRepo = database.NewMockOrchestrationRepository()
+		} else {
+			orchestrationRepo = oracleOrchestrationRepo
+		}
+
+		// Comparison Repository OracleDB 구현
+		oracleComparisonRepo, err := database.NewOracleComparisonRepository(&cfg.Database)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Failed to create Oracle comparison repository: %v", err))
+			comparisonRepo = database.NewMockComparisonRepository()
+		} else {
+			comparisonRepo = oracleComparisonRepo
+		}
 
 		log.Info("✅ OracleDB repositories initialized")
 	}

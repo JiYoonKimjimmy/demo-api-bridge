@@ -139,7 +139,7 @@ func (s *orchestrationService) ProcessParallelRequest(
 	}
 
 	// API 비교 객체 생성
-	comparison := domain.NewAPIComparison(request.ID, legacyResponse, modernResponse)
+	comparison := domain.NewAPIComparison(request.ID, request.ID, request.RoutingRuleID, legacyResponse, modernResponse)
 	comparison.ComparisonDuration = time.Since(start)
 
 	// 응답 비교 수행

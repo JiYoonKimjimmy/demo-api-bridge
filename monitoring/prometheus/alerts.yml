@@ -1,0 +1,72 @@
+groups:
+  - name: api-bridge-alerts
+    rules:
+      # API 요청 에러율 알림
+      - alert: HighErrorRate
+        expr: rate(api_bridge_requests_total{status_code=~"5.."}[5m]) / rate(api_bridge_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      # 응답 시간 임계값 초과
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(api_bridge_request_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # API 비교 일치율 낮음
+      - alert: LowMatchRate
+        expr: api_bridge_comparison_match_rate < 0.90
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low API comparison match rate"
+          description: "Match rate is {{ $value | humanizePercentage }}"
+
+      # Circuit Breaker 열림
+      - alert: CircuitBreakerOpen
+        expr: api_bridge_circuit_breaker_state == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit breaker for {{ $labels.endpoint }} is open"
+
+      # 외부 API 호출 실패율 높음
+      - alert: HighExternalAPIFailureRate
+        expr: rate(api_bridge_external_api_calls_total{success="false"}[5m]) / rate(api_bridge_external_api_calls_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High external API failure rate"
+          description: "External API failure rate is {{ $value | humanizePercentage }}"
+
+      # 캐시 히트율 낮음
+      - alert: LowCacheHitRate
+        expr: rate(api_bridge_cache_hits_total[5m]) / (rate(api_bridge_cache_hits_total[5m]) + rate(api_bridge_cache_misses_total[5m])) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      # API 모드 전환 빈발
+      - alert: FrequentModeTransitions
+        expr: rate(api_bridge_api_mode_transitions_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent API mode transitions"
+          description: "API mode transitions are happening too frequently: {{ $value }} transitions per second"

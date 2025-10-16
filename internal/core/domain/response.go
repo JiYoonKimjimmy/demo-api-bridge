@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -63,4 +64,19 @@ func (r *Response) IsFromCache() bool {
 // SetDuration은 처리 시간을 설정합니다.
 func (r *Response) SetDuration(start time.Time) {
 	r.Duration = time.Since(start)
+}
+
+// ToJSON은 Response를 JSON으로 직렬화합니다.
+func (r *Response) ToJSON() ([]byte, error) {
+	return json.Marshal(r)
+}
+
+// ResponseFromJSON은 JSON에서 Response를 생성합니다.
+func ResponseFromJSON(data []byte) (*Response, error) {
+	var response Response
+	err := json.Unmarshal(data, &response)
+	if err != nil {
+		return nil, err
+	}
+	return &response, nil
 }

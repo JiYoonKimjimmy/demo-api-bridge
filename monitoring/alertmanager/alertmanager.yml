@@ -1,0 +1,68 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@api-bridge.com'
+  smtp_auth_username: 'alerts@api-bridge.com'
+  smtp_auth_password: 'password'
+
+# 알림 라우팅 규칙
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+  routes:
+    # Critical 알림은 즉시 전송
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 5s
+      repeat_interval: 30m
+    
+    # Warning 알림은 그룹핑하여 전송
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 30s
+      repeat_interval: 2h
+
+# 알림 수신자 정의
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@api-bridge.com'
+        subject: '[CRITICAL] API Bridge Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+          {{ end }}
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'team@api-bridge.com'
+        subject: '[WARNING] API Bridge Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+          {{ end }}
+
+# 알림 억제 규칙
+inhibit_rules:
+  # Circuit Breaker가 열려있을 때는 외부 API 실패 알림을 억제
+  - source_match:
+      alertname: 'CircuitBreakerOpen'
+    target_match:
+      alertname: 'HighExternalAPIFailureRate'
+    equal: ['endpoint']

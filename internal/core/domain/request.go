@@ -6,16 +6,17 @@ import (
 
 // Request는 API Bridge를 통과하는 요청을 나타냅니다.
 type Request struct {
-	ID          string            // 요청 고유 ID (Trace ID)
-	Method      string            // HTTP 메서드 (GET, POST, PUT, DELETE 등)
-	Path        string            // 요청 경로
-	Headers     map[string]string // 요청 헤더
-	QueryParams map[string]string // 쿼리 파라미터
-	Body        []byte            // 요청 본문
-	Timestamp   time.Time         // 요청 시간
-	ClientIP    string            // 클라이언트 IP
-	SourceIP    string            // 소스 IP (ClientIP와 동일)
-	UserAgent   string            // User Agent
+	ID            string            // 요청 고유 ID (Trace ID)
+	Method        string            // HTTP 메서드 (GET, POST, PUT, DELETE 등)
+	Path          string            // 요청 경로
+	RoutingRuleID string            // 라우팅 규칙 ID
+	Headers       map[string]string // 요청 헤더
+	QueryParams   map[string]string // 쿼리 파라미터
+	Body          []byte            // 요청 본문
+	Timestamp     time.Time         // 요청 시간
+	ClientIP      string            // 클라이언트 IP
+	SourceIP      string            // 소스 IP (ClientIP와 동일)
+	UserAgent     string            // User Agent
 }
 
 // NewRequest는 새로운 Request를 생성합니다.

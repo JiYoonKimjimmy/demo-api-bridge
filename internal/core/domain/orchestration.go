@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -18,13 +19,16 @@ const (
 
 // APIComparison는 API 응답 비교 결과를 나타냅니다.
 type APIComparison struct {
+	ID                 string         // 비교 고유 ID
 	RequestID          string         // 요청 ID
+	RoutingRuleID      string         // 라우팅 규칙 ID
 	LegacyResponse     *Response      // 레거시 API 응답
 	ModernResponse     *Response      // 모던 API 응답
 	MatchRate          float64        // 일치율 (0.0 ~ 1.0)
 	Differences        []ResponseDiff // 차이점 목록
 	ComparisonDuration time.Duration  // 비교 소요 시간
 	Timestamp          time.Time      // 비교 시점
+	CreatedAt          time.Time      // 생성 시간
 }
 
 // ResponseDiff는 응답 차이점을 나타냅니다.
@@ -58,6 +62,8 @@ type OrchestrationRule struct {
 	ComparisonConfig ComparisonConfig // 비교 설정
 	IsActive         bool             // 활성화 여부
 	Description      string           // 설명
+	CreatedAt        time.Time        // 생성 시간
+	UpdatedAt        time.Time        // 수정 시간
 }
 
 // TransitionConfig는 전환 설정을 나타냅니다.
@@ -80,6 +86,7 @@ type ComparisonConfig struct {
 
 // NewOrchestrationRule은 새로운 OrchestrationRule을 생성합니다.
 func NewOrchestrationRule(id, name, routingRuleID, legacyEndpointID, modernEndpointID string) *OrchestrationRule {
+	now := time.Now()
 	return &OrchestrationRule{
 		ID:               id,
 		Name:             name,
@@ -101,7 +108,9 @@ func NewOrchestrationRule(id, name, routingRuleID, legacyEndpointID, modernEndpo
 			StrictMode:            false,
 			SaveComparisonHistory: true,
 		},
-		IsActive: true,
+		IsActive:  true,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 }
 
@@ -152,12 +161,16 @@ func (o *OrchestrationRule) IsValid() error {
 }
 
 // NewAPIComparison은 새로운 APIComparison을 생성합니다.
-func NewAPIComparison(requestID string, legacyResponse, modernResponse *Response) *APIComparison {
+func NewAPIComparison(id, requestID, routingRuleID string, legacyResponse, modernResponse *Response) *APIComparison {
+	now := time.Now()
 	return &APIComparison{
+		ID:             id,
 		RequestID:      requestID,
+		RoutingRuleID:  routingRuleID,
 		LegacyResponse: legacyResponse,
 		ModernResponse: modernResponse,
-		Timestamp:      time.Now(),
+		Timestamp:      now,
+		CreatedAt:      now,
 	}
 }
 
@@ -179,4 +192,24 @@ func (c *APIComparison) CalculateMatchRate() float64 {
 // IsSuccessful은 비교가 성공적인지 확인합니다.
 func (c *APIComparison) IsSuccessful() bool {
 	return c.MatchRate >= 0.95 // 95% 이상 일치 시 성공
+}
+
+// DifferencesToJSON은 Differences를 JSON으로 직렬화합니다.
+func (c *APIComparison) DifferencesToJSON() ([]byte, error) {
+	return json.Marshal(c.Differences)
+}
+
+// UpdateTime은 OrchestrationRule의 UpdatedAt을 현재 시간으로 업데이트합니다.
+func (o *OrchestrationRule) UpdateTime() {
+	o.UpdatedAt = time.Now()
+}
+
+// ResponseDiffsFromJSON은 JSON에서 ResponseDiff 배열을 생성합니다.
+func ResponseDiffsFromJSON(data []byte) ([]ResponseDiff, error) {
+	var diffs []ResponseDiff
+	err := json.Unmarshal(data, &diffs)
+	if err != nil {
+		return nil, err
+	}
+	return diffs, nil
 }
