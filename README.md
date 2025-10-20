@@ -73,6 +73,26 @@ make run
 air
 ```
 
+#### 스크립트를 사용한 실행 (권장)
+
+**Linux/macOS (Bash)**
+```bash
+# 서비스 시작
+./start.sh
+
+# 헬스 체크
+./health.sh
+```
+
+**Windows (PowerShell)**
+```powershell
+# 서비스 시작
+.\start.ps1
+
+# 헬스 체크
+.\health.ps1
+```
+
 #### 직접 실행
 
 ```bash
@@ -87,6 +107,16 @@ go run cmd/api-bridge/main.go
 make build
 ./bin/api-bridge.exe
 ```
+
+### 스크립트 옵션
+
+**start.sh / start.ps1**
+- Linux/macOS: `./start.sh -p 8080`
+- Windows: `.\start.ps1 -Port 8080`
+
+**health.sh / health.ps1**
+- Linux/macOS: `./health.sh -h localhost -p 10019 -v`
+- Windows: `.\health.ps1 -TargetHost localhost -Port 10019 -Verbose`
 
 ## 🔧 설정
 
