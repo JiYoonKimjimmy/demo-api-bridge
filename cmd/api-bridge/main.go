@@ -42,13 +42,11 @@ func main() {
 	}
 
 	// 의존성 초기화
-	fmt.Println("🔧 Initializing dependencies...")
 	dependencies, err := initializeDependencies(cfg)
 	if err != nil {
 		fmt.Printf("❌ Failed to initialize dependencies: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("✅ Dependencies initialized successfully")
 	defer cleanup(dependencies)
 
 	// Gin 모드 설정
@@ -91,8 +89,9 @@ func main() {
 
 	// 서버 시작 (고루틴)
 	go func() {
+		fmt.Printf("🚀 API Bridge service is now running on port %s\n", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("Failed to start server: %v\n", err)
+			fmt.Printf("❌ Failed to start server: %v\n", err)
 		}
 	}()
 
