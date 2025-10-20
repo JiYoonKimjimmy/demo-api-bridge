@@ -91,14 +91,6 @@ func main() {
 
 	// 서버 시작 (고루틴)
 	go func() {
-		fmt.Printf("Server listening on port %s\n", port)
-		fmt.Println("API Endpoints:")
-		fmt.Println("  GET  /health                    - Health check")
-		fmt.Println("  GET  /ready                     - Readiness check")
-		fmt.Println("  GET  /api/v1/status             - Service status")
-		fmt.Println("  ANY  /api/v1/bridge/*           - API Bridge")
-		fmt.Println("Press Ctrl+C to stop")
-
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			fmt.Printf("Failed to start server: %v\n", err)
 		}
