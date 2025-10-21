@@ -144,7 +144,7 @@ func (m *prometheusMetrics) RecordCacheHit(hit bool) {
 func (m *prometheusMetrics) IncrementCounter(name string, labels map[string]string) {
 	// namespace를 포함한 고유 이름 생성
 	fullName := m.namespace + "_" + name
-	
+
 	counter, exists := m.counters[fullName]
 	if !exists {
 		labelNames := make([]string, 0, len(labels))
@@ -174,7 +174,7 @@ func (m *prometheusMetrics) IncrementCounter(name string, labels map[string]stri
 func (m *prometheusMetrics) RecordGauge(name string, value float64, labels map[string]string) {
 	// namespace를 포함한 고유 이름 생성
 	fullName := m.namespace + "_" + name
-	
+
 	gauge, exists := m.gauges[fullName]
 	if !exists {
 		labelNames := make([]string, 0, len(labels))
@@ -204,7 +204,7 @@ func (m *prometheusMetrics) RecordGauge(name string, value float64, labels map[s
 func (m *prometheusMetrics) RecordHistogram(name string, value float64, labels map[string]string) {
 	// namespace를 포함한 고유 이름 생성
 	fullName := m.namespace + "_" + name
-	
+
 	histogram, exists := m.histograms[fullName]
 	if !exists {
 		labelNames := make([]string, 0, len(labels))
