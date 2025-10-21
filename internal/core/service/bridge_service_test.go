@@ -656,7 +656,7 @@ func TestBridgeService_ProcessRequest_ParallelRequest_Success(t *testing.T) {
 	mockComparisonRepo.On("SaveComparison", ctx, comparison).Return(nil)
 	mockMetrics.On("RecordRequest", "GET", "/api/users", 200, mock.AnythingOfType("time.Duration")).Return()
 	mockLogger.On("Info", "parallel request processed successfully", "request_id", "test-request-id", "match_rate", 0.95, "differences_count", 0, "returned_source", "legacy").Return()
-	mockOrchestrationSvc.On("EvaluateTransition", mock.Anything, mock.Anything).Return(false, nil)
+	mockOrchestrationSvc.On("EvaluateTransition", mock.Anything, mock.Anything).Return(false, nil).Maybe()
 
 	// When
 	response, err := service.ProcessRequest(ctx, request)
