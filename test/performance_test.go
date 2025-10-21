@@ -6,6 +6,7 @@ import (
 	"demo-api-bridge/internal/adapter/outbound/database"
 	"demo-api-bridge/internal/adapter/outbound/httpclient"
 	"demo-api-bridge/internal/core/domain"
+	"demo-api-bridge/internal/core/port"
 	"demo-api-bridge/internal/core/service"
 	"demo-api-bridge/pkg/logger"
 	"demo-api-bridge/pkg/metrics"
@@ -27,13 +28,13 @@ func createMockHTTPServer() *httptest.Server {
 }
 
 // 성능 테스트용 서비스 설정
-func setupPerformanceTest() (*service.BridgeService, func()) {
+func setupPerformanceTest(testName string) (port.BridgeService, func()) {
 	// Mock 서버 생성
 	mockServer := createMockHTTPServer()
 
 	// 의존성 설정
 	log := logger.NewDefault()
-	metricsCollector := metrics.New("performance-test")
+	metricsCollector := metrics.New("perf_test_" + testName)
 
 	// Mock Repository들
 	routingRepo := database.NewMockRoutingRepository()
@@ -80,7 +81,7 @@ func setupPerformanceTest() (*service.BridgeService, func()) {
 }
 
 // 테스트 데이터 설정
-func setupTestData(routingRepo *database.MockRoutingRepository, endpointRepo *database.MockEndpointRepository, serverURL string) {
+func setupTestData(routingRepo port.RoutingRepository, endpointRepo port.EndpointRepository, serverURL string) {
 	ctx := context.Background()
 
 	// 엔드포인트 생성
@@ -100,7 +101,7 @@ func setupTestData(routingRepo *database.MockRoutingRepository, endpointRepo *da
 
 // 단일 요청 처리 벤치마크
 func BenchmarkSingleRequest(b *testing.B) {
-	bridgeSvc, cleanup := setupPerformanceTest()
+	bridgeSvc, cleanup := setupPerformanceTest("single_request")
 	defer cleanup()
 
 	ctx := context.Background()
@@ -119,7 +120,7 @@ func BenchmarkSingleRequest(b *testing.B) {
 
 // 캐시 활성화된 요청 벤치마크
 func BenchmarkCachedRequest(b *testing.B) {
-	bridgeSvc, cleanup := setupPerformanceTest()
+	bridgeSvc, cleanup := setupPerformanceTest("cached_request")
 	defer cleanup()
 
 	ctx := context.Background()
@@ -140,7 +141,7 @@ func BenchmarkCachedRequest(b *testing.B) {
 
 // 병렬 요청 처리 벤치마크
 func BenchmarkParallelRequests(b *testing.B) {
-	bridgeSvc, cleanup := setupPerformanceTest()
+	bridgeSvc, cleanup := setupPerformanceTest("parallel_requests")
 	defer cleanup()
 
 	ctx := context.Background()
@@ -159,7 +160,7 @@ func BenchmarkParallelRequests(b *testing.B) {
 
 // 메모리 사용량 벤치마크
 func BenchmarkMemoryUsage(b *testing.B) {
-	bridgeSvc, cleanup := setupPerformanceTest()
+	bridgeSvc, cleanup := setupPerformanceTest("memory_usage")
 	defer cleanup()
 
 	ctx := context.Background()
@@ -178,7 +179,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 
 // 응답 시간 측정 테스트
 func TestResponseTime(t *testing.T) {
-	bridgeSvc, cleanup := setupPerformanceTest()
+	bridgeSvc, cleanup := setupPerformanceTest("response_time")
 	defer cleanup()
 
 	ctx := context.Background()
@@ -202,7 +203,7 @@ func TestResponseTime(t *testing.T) {
 
 // 동시 요청 처리 테스트
 func TestConcurrentRequests(t *testing.T) {
-	bridgeSvc, cleanup := setupPerformanceTest()
+	bridgeSvc, cleanup := setupPerformanceTest("concurrent_requests")
 	defer cleanup()
 
 	ctx := context.Background()
@@ -282,7 +283,7 @@ func TestLoadTest(t *testing.T) {
 		t.Skip("Skipping load test in short mode")
 	}
 
-	bridgeSvc, cleanup := setupPerformanceTest()
+	bridgeSvc, cleanup := setupPerformanceTest("load_test")
 	defer cleanup()
 
 	ctx := context.Background()
