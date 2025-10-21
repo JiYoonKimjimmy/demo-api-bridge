@@ -11,6 +11,8 @@ import (
 
 // prometheusMetrics는 Prometheus 기반 MetricsCollector 구현체입니다.
 type prometheusMetrics struct {
+	namespace string // 메트릭 네임스페이스
+
 	// HTTP 요청 메트릭
 	httpRequestsTotal   *prometheus.CounterVec
 	httpRequestDuration *prometheus.HistogramVec
@@ -32,6 +34,7 @@ type prometheusMetrics struct {
 // New는 새로운 Prometheus MetricsCollector를 생성합니다.
 func New(namespace string) port.MetricsCollector {
 	m := &prometheusMetrics{
+		namespace:  namespace,
 		counters:   make(map[string]*prometheus.CounterVec),
 		gauges:     make(map[string]*prometheus.GaugeVec),
 		histograms: make(map[string]*prometheus.HistogramVec),
@@ -139,7 +142,10 @@ func (m *prometheusMetrics) RecordCacheHit(hit bool) {
 
 // IncrementCounter는 카운터를 증가시킵니다.
 func (m *prometheusMetrics) IncrementCounter(name string, labels map[string]string) {
-	counter, exists := m.counters[name]
+	// namespace를 포함한 고유 이름 생성
+	fullName := m.namespace + "_" + name
+	
+	counter, exists := m.counters[fullName]
 	if !exists {
 		labelNames := make([]string, 0, len(labels))
 		for k := range labels {
@@ -148,12 +154,12 @@ func (m *prometheusMetrics) IncrementCounter(name string, labels map[string]stri
 
 		counter = promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: name,
+				Name: fullName,
 				Help: name,
 			},
 			labelNames,
 		)
-		m.counters[name] = counter
+		m.counters[fullName] = counter
 	}
 
 	labelValues := make([]string, 0, len(labels))
@@ -166,7 +172,10 @@ func (m *prometheusMetrics) IncrementCounter(name string, labels map[string]stri
 
 // RecordGauge는 게이지 값을 기록합니다.
 func (m *prometheusMetrics) RecordGauge(name string, value float64, labels map[string]string) {
-	gauge, exists := m.gauges[name]
+	// namespace를 포함한 고유 이름 생성
+	fullName := m.namespace + "_" + name
+	
+	gauge, exists := m.gauges[fullName]
 	if !exists {
 		labelNames := make([]string, 0, len(labels))
 		for k := range labels {
@@ -175,12 +184,12 @@ func (m *prometheusMetrics) RecordGauge(name string, value float64, labels map[s
 
 		gauge = promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: name,
+				Name: fullName,
 				Help: name,
 			},
 			labelNames,
 		)
-		m.gauges[name] = gauge
+		m.gauges[fullName] = gauge
 	}
 
 	labelValues := make([]string, 0, len(labels))
@@ -193,7 +202,10 @@ func (m *prometheusMetrics) RecordGauge(name string, value float64, labels map[s
 
 // RecordHistogram은 히스토그램 값을 기록합니다.
 func (m *prometheusMetrics) RecordHistogram(name string, value float64, labels map[string]string) {
-	histogram, exists := m.histograms[name]
+	// namespace를 포함한 고유 이름 생성
+	fullName := m.namespace + "_" + name
+	
+	histogram, exists := m.histograms[fullName]
 	if !exists {
 		labelNames := make([]string, 0, len(labels))
 		for k := range labels {
@@ -202,13 +214,13 @@ func (m *prometheusMetrics) RecordHistogram(name string, value float64, labels m
 
 		histogram = promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    name,
+				Name:    fullName,
 				Help:    name,
 				Buckets: prometheus.DefBuckets,
 			},
 			labelNames,
 		)
-		m.histograms[name] = histogram
+		m.histograms[fullName] = histogram
 	}
 
 	labelValues := make([]string, 0, len(labels))

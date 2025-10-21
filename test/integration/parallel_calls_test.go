@@ -1,5 +1,14 @@
 package integration
 
+// 주의: 이 파일의 테스트를 실행할 때는 개별 테스트로 실행하거나
+// go test ./test/integration/... 명령어를 사용하세요.
+// go test test/integration/parallel_calls_test.go 형태로 파일 전체 실행 시
+// Prometheus 메트릭 중복 등록으로 인해 두 번째 테스트부터 실패할 수 있습니다.
+//
+// 권장 실행 방법:
+// - go test -v ./test/integration/... -run TestParallelCalls_IdenticalResponses
+// - go test -v ./test/integration/... -run TestParallelCalls
+
 import (
 	"context"
 	"encoding/json"
@@ -106,7 +115,7 @@ func TestParallelCalls_DifferentResponses(t *testing.T) {
 	var responseData map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &responseData)
 	assert.NoError(t, err)
-	
+
 	// 레거시 응답 형식 확인
 	assert.Contains(t, w.Body.String(), "user_id")
 }
@@ -421,4 +430,3 @@ func TestParallelCalls_ConcurrentRequests(t *testing.T) {
 	errorCount := len(errors)
 	assert.Equal(t, 0, errorCount, "All concurrent requests should succeed")
 }
-
