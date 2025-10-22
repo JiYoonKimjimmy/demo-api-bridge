@@ -40,7 +40,7 @@ function Write-Error {
 
 # Function to show usage
 function Show-Usage {
-    Write-Host "Usage: .\start.ps1 [OPTIONS]"
+    Write-Host "Usage: .\scripts\start.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Port PORT        Target port (default: 10019)"
@@ -49,9 +49,9 @@ function Show-Usage {
     Write-Host "  -Help             Show this help message"
     Write-Host ""
     Write-Host "Examples:"
-    Write-Host "  .\start.ps1                    # Start with default settings"
-    Write-Host "  .\start.ps1 -Port 8080         # Start on port 8080"
-    Write-Host "  .\start.ps1 -Verbose           # Show detailed output"
+    Write-Host "  .\scripts\start.ps1                    # Start with default settings"
+    Write-Host "  .\scripts\start.ps1 -Port 8080         # Start on port 8080"
+    Write-Host "  .\scripts\start.ps1 -Verbose           # Show detailed output"
     Write-Host ""
 }
 
@@ -105,6 +105,25 @@ function Invoke-DownloadDependencies {
     catch {
         Write-Error "Failed to download dependencies"
         exit 1
+    }
+}
+
+# Generate API documentation
+function Invoke-GenerateAPIDocs {
+    Write-Info "Generating API documentation..."
+    try {
+        if (Test-Path "scripts\generate-docs.ps1") {
+            Write-Info "Running API documentation generation script..."
+            & ".\scripts\generate-docs.ps1"
+            Write-Success "API documentation generated successfully"
+        }
+        else {
+            Write-Warning "generate-docs.ps1 not found. Skipping API documentation generation."
+        }
+    }
+    catch {
+        Write-Warning "Failed to generate API documentation"
+        Write-Info "Continuing with application startup..."
     }
 }
 
@@ -188,6 +207,7 @@ function Main {
     Test-ProjectStructure
     New-Directories
     Invoke-DownloadDependencies
+    Invoke-GenerateAPIDocs
     Invoke-BuildApplication
     Set-Environment
     

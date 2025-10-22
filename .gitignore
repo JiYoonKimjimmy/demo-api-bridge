@@ -45,6 +45,10 @@ logs/
 tmp/
 temp/
 
+# Backup files (Git으로 형상관리하므로 불필요)
+*.backup.*
+*backup*
+
 # Config files with sensitive data
 config/local.yaml
 config/dev.yaml

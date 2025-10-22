@@ -5,6 +5,12 @@
 
 set -e  # Exit on any error
 
+# Default values
+PORT="10019"
+TARGET_HOST="localhost"
+VERBOSE=false
+HELP=false
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -28,6 +34,50 @@ print_warning() {
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
+
+# Function to show usage
+show_usage() {
+    echo "Usage: ./scripts/start.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  -p, --port PORT     Target port (default: 10019)"
+    echo "  -h, --host HOST     Target host (default: localhost)"
+    echo "  -v, --verbose       Show detailed output"
+    echo "  --help             Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  ./scripts/start.sh                    # Start with default settings"
+    echo "  ./scripts/start.sh -p 8080           # Start on port 8080"
+    echo "  ./scripts/start.sh --verbose          # Show detailed output"
+    echo ""
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -p|--port)
+            PORT="$2"
+            shift 2
+            ;;
+        -h|--host)
+            TARGET_HOST="$2"
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help)
+            HELP=true
+            shift
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_usage
+            exit 1
+            ;;
+    esac
+done
 
 # Check if Go is installed
 check_go() {
@@ -62,6 +112,13 @@ check_project_structure() {
     print_success "Project structure validated"
 }
 
+# Create necessary directories
+create_directories() {
+    print_info "Creating necessary directories..."
+    mkdir -p bin logs
+    print_success "Directories created"
+}
+
 # Download dependencies
 download_dependencies() {
     print_info "Downloading Go dependencies..."
@@ -70,6 +127,22 @@ download_dependencies() {
     else
         print_error "Failed to download dependencies"
         exit 1
+    fi
+}
+
+# Generate API documentation
+generate_api_docs() {
+    print_info "Generating API documentation..."
+    if [ -f "scripts/generate-docs.sh" ]; then
+        print_info "Running API documentation generation script..."
+        if ./scripts/generate-docs.sh; then
+            print_success "API documentation generated successfully"
+        else
+            print_warning "Failed to generate API documentation"
+            print_info "Continuing with application startup..."
+        fi
+    else
+        print_warning "generate-docs.sh not found. Skipping API documentation generation."
     fi
 }
 
@@ -84,28 +157,13 @@ build_application() {
     fi
 }
 
-# Create necessary directories
-create_directories() {
-    print_info "Creating necessary directories..."
-    mkdir -p bin
-    mkdir -p logs
-    print_success "Directories created"
-}
-
 # Set environment variables
 set_environment() {
     print_info "Setting environment variables..."
     
-    # Set default port if not already set
-    if [ -z "$PORT" ]; then
-        export PORT=10019
-    fi
-    
-    # Set Gin mode to release for production
-    export GIN_MODE=release
-    
-    # Set timezone
-    export TZ=Asia/Seoul
+    export PORT="$PORT"
+    export GIN_MODE="release"
+    export TZ="Asia/Seoul"
     
     print_info "PORT: $PORT"
     print_info "GIN_MODE: $GIN_MODE"
@@ -115,17 +173,17 @@ set_environment() {
 # Start the application
 start_application() {
     print_info "Starting API Bridge Service..."
-    print_info "Service will be available at: http://localhost:$PORT"
-    print_info ""
+    print_info "Service will be available at: http://$TARGET_HOST:$PORT"
+    echo ""
     print_info "Available endpoints:"
     print_info "  GET  /health                    - Health check"
     print_info "  GET  /ready                     - Readiness check"
     print_info "  GET  /api/v1/status             - Service status"
     print_info "  ANY  /api/v1/bridge/*           - API Bridge"
     print_info "  GET  /metrics                   - Prometheus metrics"
-    print_info ""
+    echo ""
     print_info "Press Ctrl+C to stop the service"
-    print_info "=================================="
+    echo "=================================="
     
     # Start the application
     if [ -f "bin/api-bridge" ]; then
@@ -146,24 +204,30 @@ cleanup() {
 # Set trap for cleanup
 trap cleanup EXIT INT TERM
 
-# Main execution
+# Main function
 main() {
-    print_info "=================================="
-    print_info "API Bridge Service Startup Script"
-    print_info "=================================="
+    if [ "$HELP" = true ]; then
+        show_usage
+        return
+    fi
+    
+    echo "=================================="
+    echo "API Bridge Service Startup Script"
+    echo "=================================="
     
     check_go
     check_project_structure
     create_directories
     download_dependencies
+    generate_api_docs
     build_application
     set_environment
     
     print_success "All checks passed. Starting service..."
-    print_info "=================================="
+    echo "=================================="
     
     start_application
 }
 
 # Run main function
-main "$@"
+main

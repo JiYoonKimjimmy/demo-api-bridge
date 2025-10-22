@@ -1,0 +1,771 @@
+basePath: /api/v1
+definitions:
+  http.CreateEndpointRequest:
+    properties:
+      base_url:
+        type: string
+      description:
+        type: string
+      health_url:
+        type: string
+      is_active:
+        type: boolean
+      method:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      priority:
+        type: integer
+      retry_count:
+        type: integer
+      timeout:
+        description: milliseconds
+        type: integer
+    required:
+    - base_url
+    - method
+    - name
+    type: object
+  http.EndpointResponse:
+    properties:
+      base_url:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      health_url:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      retry_count:
+        type: integer
+      timeout:
+        description: milliseconds
+        type: integer
+      updated_at:
+        type: string
+    type: object
+host: localhost:10019
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API Bridge Service for Legacy and Modern System Integration
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: API Bridge Service
+  version: "1.0"
+paths:
+  /api/v1/bridge/{path}:
+    delete:
+      consumes:
+      - application/json
+      description: Process API bridge request using any HTTP method
+      parameters:
+      - description: API path to bridge
+        in: path
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Request processed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Process Bridge Request
+      tags:
+      - Bridge
+    get:
+      consumes:
+      - application/json
+      description: Process API bridge request using any HTTP method
+      parameters:
+      - description: API path to bridge
+        in: path
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Request processed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Process Bridge Request
+      tags:
+      - Bridge
+    post:
+      consumes:
+      - application/json
+      description: Process API bridge request using any HTTP method
+      parameters:
+      - description: API path to bridge
+        in: path
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Request processed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Process Bridge Request
+      tags:
+      - Bridge
+    put:
+      consumes:
+      - application/json
+      description: Process API bridge request using any HTTP method
+      parameters:
+      - description: API path to bridge
+        in: path
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Request processed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Process Bridge Request
+      tags:
+      - Bridge
+  /api/v1/endpoints:
+    get:
+      description: Retrieve a list of all API endpoints
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of endpoints
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all API endpoints
+      tags:
+      - endpoints
+    post:
+      consumes:
+      - application/json
+      description: Create a new API endpoint with the provided information
+      parameters:
+      - description: Endpoint information
+        in: body
+        name: endpoint
+        required: true
+        schema:
+          $ref: '#/definitions/http.CreateEndpointRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Endpoint created successfully
+          schema:
+            $ref: '#/definitions/http.EndpointResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new API endpoint
+      tags:
+      - endpoints
+  /api/v1/endpoints/{id}:
+    delete:
+      description: Delete an API endpoint by its ID
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Endpoint deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Endpoint not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete API endpoint
+      tags:
+      - endpoints
+    get:
+      description: Retrieve a specific API endpoint by its ID
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Endpoint retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Endpoint not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get API endpoint by ID
+      tags:
+      - endpoints
+    put:
+      consumes:
+      - application/json
+      description: Update an existing API endpoint
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Endpoint information
+        in: body
+        name: endpoint
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Endpoint updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Endpoint not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update API endpoint
+      tags:
+      - endpoints
+  /api/v1/orchestration-rules:
+    post:
+      consumes:
+      - application/json
+      description: Create a new orchestration rule with the provided information
+      parameters:
+      - description: Orchestration rule information
+        in: body
+        name: orchestrationRule
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Orchestration rule created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new orchestration rule
+      tags:
+      - orchestration-rules
+  /api/v1/orchestration-rules/{id}:
+    get:
+      description: Retrieve a specific orchestration rule by its ID
+      parameters:
+      - description: Orchestration rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Orchestration rule retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Orchestration rule not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get orchestration rule by ID
+      tags:
+      - orchestration-rules
+    put:
+      consumes:
+      - application/json
+      description: Update an existing orchestration rule
+      parameters:
+      - description: Orchestration rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Orchestration rule information
+        in: body
+        name: orchestrationRule
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Orchestration rule updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Orchestration rule not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update orchestration rule
+      tags:
+      - orchestration-rules
+  /api/v1/orchestration-rules/{id}/evaluate-transition:
+    get:
+      description: Evaluate if a transition should be made for the orchestration rule
+      parameters:
+      - description: Orchestration rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transition evaluation completed
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Orchestration rule not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Evaluate transition
+      tags:
+      - orchestration-rules
+  /api/v1/orchestration-rules/{id}/execute-transition:
+    post:
+      consumes:
+      - application/json
+      description: Execute a transition to a new mode for the orchestration rule
+      parameters:
+      - description: Orchestration rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Transition information
+        in: body
+        name: transition
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transition executed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Orchestration rule not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Execute transition
+      tags:
+      - orchestration-rules
+  /api/v1/routing-rules:
+    get:
+      description: Retrieve a list of all routing rules
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of routing rules retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all routing rules
+      tags:
+      - routing-rules
+    post:
+      consumes:
+      - application/json
+      description: Create a new routing rule with the provided information
+      parameters:
+      - description: Routing rule information
+        in: body
+        name: routingRule
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Routing rule created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new routing rule
+      tags:
+      - routing-rules
+  /api/v1/routing-rules/{id}:
+    delete:
+      description: Delete a routing rule by its ID
+      parameters:
+      - description: Routing rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Routing rule deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Routing rule not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete routing rule
+      tags:
+      - routing-rules
+    get:
+      description: Retrieve a specific routing rule by its ID
+      parameters:
+      - description: Routing rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Routing rule retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Routing rule not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get routing rule by ID
+      tags:
+      - routing-rules
+    put:
+      consumes:
+      - application/json
+      description: Update an existing routing rule
+      parameters:
+      - description: Routing rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Routing rule information
+        in: body
+        name: routingRule
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Routing rule updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Routing rule not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update routing rule
+      tags:
+      - routing-rules
+  /api/v1/shutdown:
+    post:
+      consumes:
+      - application/json
+      description: Gracefully shutdown the API Bridge service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Shutdown initiated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Graceful shutdown
+      tags:
+      - system
+  /api/v1/status:
+    get:
+      description: Get detailed service status information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service status retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Service Status
+      tags:
+      - Health
+  /health:
+    get:
+      description: Check if the service is healthy
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service is unhealthy
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health Check
+      tags:
+      - Health
+  /metrics:
+    get:
+      description: Get Prometheus metrics for monitoring
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Metrics retrieved successfully
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Prometheus Metrics
+      tags:
+      - metrics
+  /ready:
+    get:
+      description: Check if the service is ready to accept requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is ready
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service is not ready
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Readiness Check
+      tags:
+      - Health
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

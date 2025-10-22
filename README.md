@@ -29,7 +29,8 @@ demo-api-bridge/
 │   ├── logger/              # 로깅 유틸리티
 │   └── metrics/             # 모니터링 메트릭
 ├── config/                  # 설정 파일
-├── docs/                    # 문서
+├── docs/                    # 프로젝트 문서
+├── api-docs/                # Swagger/OpenAPI 자동 생성 문서
 ├── scripts/                 # 유틸리티 스크립트
 └── test/                    # 통합 테스트
 ```
@@ -129,7 +130,10 @@ air
 **Linux/macOS (Bash)**
 ```bash
 # 서비스 시작
-./start.sh
+./scripts/start.sh
+
+# 서비스 중지
+./scripts/shutdown.sh
 
 # 헬스 체크
 ./health.sh
@@ -138,10 +142,33 @@ air
 **Windows (PowerShell)**
 ```powershell
 # 서비스 시작
-.\start.ps1
+.\scripts\start.ps1
+
+# 서비스 중지
+.\scripts\shutdown.ps1
 
 # 헬스 체크
 .\health.ps1
+```
+
+#### 서비스 중지 옵션
+
+**Graceful Shutdown (기본)**
+```bash
+# Linux/macOS
+./scripts/shutdown.sh
+
+# Windows
+.\scripts\shutdown.ps1
+```
+
+**특정 포트의 서비스 중지**
+```bash
+# Linux/macOS
+./scripts/shutdown.sh -p 8080
+
+# Windows
+.\scripts\shutdown.ps1 -Port 8080
 ```
 
 #### 직접 실행
@@ -252,6 +279,122 @@ make build
 ## 📊 모니터링
 
 Prometheus 메트릭은 `/metrics` 엔드포인트에서 확인할 수 있습니다 (설정 시).
+
+## 📚 API 문서화
+
+### Swagger/OpenAPI 자동 문서화
+
+이 프로젝트는 `swag` 도구를 사용하여 자동으로 API 문서를 생성합니다.
+
+#### 📁 문서 구조
+- **`docs/`**: 프로젝트 관련 문서 (설계서, 가이드 등)
+- **`api-docs/`**: Swagger 자동 생성 문서
+  - `docs.go`: Go 패키지로 생성된 문서
+  - `swagger.json`: JSON 형식 API 스펙
+  - `swagger.yaml`: YAML 형식 API 스펙
+
+#### 🔧 문서 생성 및 업데이트
+
+##### 자동 생성 (권장)
+```powershell
+# PowerShell (Windows)
+.\scripts\generate-docs.ps1
+
+# Bash (Linux/macOS)
+./scripts/generate-docs.sh
+```
+
+##### 수동 생성
+```bash
+# Swagger 문서 생성
+swag init -g cmd/api-bridge/main.go -o api-docs
+```
+
+
+#### 🌐 Swagger UI 접속
+서버 실행 후 다음 URL에서 API 문서를 확인하고 테스트할 수 있습니다:
+- **Swagger UI**: `http://localhost:10019/swagger/index.html`
+- **YAML API**: `http://localhost:10019/api-docs/swagger.yaml`
+
+#### 💡 API 문서 수정 워크플로우
+
+##### 자동 문서 생성 (권장)
+애플리케이션 시작 시 자동으로 최신 API 문서를 생성합니다:
+
+```powershell
+# PowerShell (Windows) - 자동으로 API 문서 생성 후 애플리케이션 시작
+.\start.ps1
+
+# Bash (Linux/macOS) - 자동으로 API 문서 생성 후 애플리케이션 시작
+./start.sh
+```
+
+##### 수동 문서 생성
+API 문서만 별도로 생성하고 싶은 경우:
+
+```powershell
+# PowerShell (Windows)
+.\scripts\generate-docs.ps1
+
+# Bash (Linux/macOS)
+./scripts/generate-docs.sh
+```
+
+##### 개발 워크플로우
+1. **swagger.yaml 파일 수정**: `api-docs/swagger.yaml` 파일에서 API 스펙을 수정
+2. **애플리케이션 재시작**: `.\start.ps1` 또는 `./start.sh` 실행 시 자동으로 최신 문서 생성
+3. **즉시 반영**: 서버 시작과 동시에 최신 API 문서가 Swagger UI에 반영됨
+
+> 💡 **팁**: `start.ps1`/`start.sh` 스크립트를 사용하면 애플리케이션 시작 시 자동으로 최신 API 문서가 생성됩니다!
+
+## 🧪 테스트
+
+### 스크립트 테스트
+
+#### Windows (PowerShell)
+```powershell
+# 빌드
+.\scripts\build.ps1
+
+# 단위 테스트
+.\scripts\unit-test.ps1
+
+# CRUD API 통합 테스트
+.\scripts\test_crud_api.sh
+
+# 성능 테스트
+.\scripts\performance-test.ps1
+
+# 부하 테스트
+.\scripts\vegeta-load-test.ps1
+```
+
+#### Linux/macOS (Bash)
+```bash
+# 빌드
+./scripts/build.sh
+
+# 단위 테스트
+./scripts/unit-test.sh
+
+# CRUD API 통합 테스트
+./scripts/test_crud_api.sh
+
+# 성능 테스트
+./scripts/performance-test.sh
+
+# 부하 테스트
+./scripts/vegeta-load-test.sh
+```
+
+### Go 테스트
+```bash
+# 모든 테스트 실행
+go test ./test/... -v
+
+# CRUD API 테스트
+go test ./test/crud_api_test.go -v
+```
 
 ## 🔐 환경 변수
 

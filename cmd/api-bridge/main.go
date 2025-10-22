@@ -1,3 +1,22 @@
+// @title API Bridge Service
+// @version 1.0
+// @description API Bridge Service for Legacy and Modern System Integration
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:10019
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+
 package main
 
 import (
@@ -19,8 +38,12 @@ import (
 	"demo-api-bridge/pkg/logger"
 	"demo-api-bridge/pkg/metrics"
 
+	_ "demo-api-bridge/api-docs" // api-docs 폴더를 import하여 Swagger 문서를 로드합니다.
+
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 const (
@@ -101,6 +124,21 @@ func main() {
 	// Graceful Shutdown 설정
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Handler의 shutdown 채널도 함께 처리
+	shutdownChannel := httpHandler.GetShutdownChannel()
+
+	// 여러 채널을 동시에 처리
+	go func() {
+		select {
+		case <-quit:
+			fmt.Println("Received system signal for shutdown")
+		case <-shutdownChannel:
+			fmt.Println("Received API shutdown request")
+		}
+		quit <- os.Interrupt // 다른 고루틴에 신호 전달
+	}()
+
 	<-quit
 
 	fmt.Println("Shutting down server...")
@@ -275,10 +313,16 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 
 // setupRoutes는 라우트를 설정합니다.
 func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
+	// Swagger UI
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	// Health Check
 	router.GET("/health", handler.HealthCheck)
 	router.GET("/ready", handler.ReadinessCheck)
 	router.GET("/api/v1/status", handler.Status)
+
+	// Graceful Shutdown
+	router.POST("/api/v1/shutdown", handler.GracefulShutdown)
 
 	// API Bridge - 모든 요청 처리
 	router.Any("/api/v1/bridge/*path", handler.ProcessBridgeRequest)
