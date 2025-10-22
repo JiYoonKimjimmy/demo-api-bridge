@@ -16,10 +16,13 @@ type CreateEndpointRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 	BaseURL     string `json:"base_url" binding:"required,url"`
+	Path        string `json:"path"`
 	HealthURL   string `json:"health_url"`
+	Method      string `json:"method" binding:"required"`
 	IsActive    bool   `json:"is_active"`
 	Timeout     int    `json:"timeout"` // milliseconds
 	RetryCount  int    `json:"retry_count"`
+	Priority    int    `json:"priority"`
 }
 
 // ToDomain는 CreateEndpointRequest를 Domain APIEndpoint로 변환합니다.
@@ -28,10 +31,13 @@ func (req *CreateEndpointRequest) ToDomain() *domain.APIEndpoint {
 		Name:        req.Name,
 		Description: req.Description,
 		BaseURL:     req.BaseURL,
+		Path:        req.Path,
 		HealthURL:   req.HealthURL,
+		Method:      req.Method,
 		IsActive:    req.IsActive,
 		Timeout:     time.Duration(req.Timeout) * time.Millisecond,
 		RetryCount:  req.RetryCount,
+		Priority:    req.Priority,
 	}
 }
 
@@ -100,6 +106,8 @@ func (req *CreateRoutingRuleRequest) ToDomain() *domain.RoutingRule {
 
 	if req.LegacyEndpoint != nil {
 		rule.LegacyEndpointID = req.LegacyEndpoint.ID
+		// LegacyEndpointID를 기본 EndpointID로 사용
+		rule.EndpointID = req.LegacyEndpoint.ID
 	}
 	if req.ModernEndpoint != nil {
 		rule.ModernEndpointID = req.ModernEndpoint.ID
@@ -160,6 +168,155 @@ func (req *UpdateRoutingRuleRequest) ApplyTo(rule *domain.RoutingRule) {
 type EndpointReference struct {
 	ID   string `json:"id" binding:"required"`
 	Name string `json:"name,omitempty"`
+}
+
+// CreateOrchestrationRuleRequest는 오케스트레이션 규칙 생성을 위한 요청 DTO입니다.
+type CreateOrchestrationRuleRequest struct {
+	Name             string                   `json:"name" binding:"required"`
+	Description      string                   `json:"description"`
+	RoutingRuleID    string                   `json:"routing_rule_id" binding:"required"`
+	LegacyEndpoint   *EndpointReference       `json:"legacy_endpoint" binding:"required"`
+	ModernEndpoint   *EndpointReference       `json:"modern_endpoint" binding:"required"`
+	CurrentMode      string                   `json:"current_mode"`
+	TransitionConfig *TransitionConfigRequest `json:"transition_config"`
+	ComparisonConfig *ComparisonConfigRequest `json:"comparison_config"`
+	IsActive         bool                     `json:"is_active"`
+}
+
+// ToDomain는 CreateOrchestrationRuleRequest를 Domain OrchestrationRule로 변환합니다.
+func (req *CreateOrchestrationRuleRequest) ToDomain() *domain.OrchestrationRule {
+	rule := &domain.OrchestrationRule{
+		Name:          req.Name,
+		Description:   req.Description,
+		RoutingRuleID: req.RoutingRuleID,
+		IsActive:      req.IsActive,
+	}
+
+	if req.LegacyEndpoint != nil {
+		rule.LegacyEndpointID = req.LegacyEndpoint.ID
+	}
+	if req.ModernEndpoint != nil {
+		rule.ModernEndpointID = req.ModernEndpoint.ID
+	}
+
+	// CurrentMode 설정
+	switch req.CurrentMode {
+	case "LEGACY_ONLY":
+		rule.CurrentMode = domain.LEGACY_ONLY
+	case "MODERN_ONLY":
+		rule.CurrentMode = domain.MODERN_ONLY
+	case "PARALLEL":
+		rule.CurrentMode = domain.PARALLEL
+	default:
+		rule.CurrentMode = domain.PARALLEL // 기본값
+	}
+
+	// TransitionConfig 설정
+	if req.TransitionConfig != nil {
+		rule.TransitionConfig = req.TransitionConfig.ToDomain()
+	} else {
+		rule.TransitionConfig = domain.TransitionConfig{
+			AutoTransitionEnabled:    true,
+			MatchRateThreshold:       0.95,
+			StabilityPeriod:          24 * time.Hour,
+			MinRequestsForTransition: 100,
+			RollbackThreshold:        0.90,
+		}
+	}
+
+	// ComparisonConfig 설정
+	if req.ComparisonConfig != nil {
+		rule.ComparisonConfig = req.ComparisonConfig.ToDomain()
+	} else {
+		rule.ComparisonConfig = domain.ComparisonConfig{
+			Enabled:               true,
+			IgnoreFields:          []string{"timestamp", "requestId"},
+			AllowableDifference:   0.01,
+			StrictMode:            false,
+			SaveComparisonHistory: true,
+		}
+	}
+
+	return rule
+}
+
+// UpdateOrchestrationRuleRequest는 오케스트레이션 규칙 업데이트를 위한 요청 DTO입니다.
+type UpdateOrchestrationRuleRequest struct {
+	Name             *string                  `json:"name,omitempty"`
+	Description      *string                  `json:"description,omitempty"`
+	CurrentMode      *string                  `json:"current_mode,omitempty"`
+	TransitionConfig *TransitionConfigRequest `json:"transition_config,omitempty"`
+	ComparisonConfig *ComparisonConfigRequest `json:"comparison_config,omitempty"`
+	IsActive         *bool                    `json:"is_active,omitempty"`
+}
+
+// ApplyTo는 UpdateOrchestrationRuleRequest의 값을 Domain OrchestrationRule에 적용합니다.
+func (req *UpdateOrchestrationRuleRequest) ApplyTo(rule *domain.OrchestrationRule) {
+	if req.Name != nil {
+		rule.Name = *req.Name
+	}
+	if req.Description != nil {
+		rule.Description = *req.Description
+	}
+	if req.CurrentMode != nil {
+		switch *req.CurrentMode {
+		case "LEGACY_ONLY":
+			rule.CurrentMode = domain.LEGACY_ONLY
+		case "MODERN_ONLY":
+			rule.CurrentMode = domain.MODERN_ONLY
+		case "PARALLEL":
+			rule.CurrentMode = domain.PARALLEL
+		}
+	}
+	if req.TransitionConfig != nil {
+		rule.TransitionConfig = req.TransitionConfig.ToDomain()
+	}
+	if req.ComparisonConfig != nil {
+		rule.ComparisonConfig = req.ComparisonConfig.ToDomain()
+	}
+	if req.IsActive != nil {
+		rule.IsActive = *req.IsActive
+	}
+}
+
+// TransitionConfigRequest는 전환 설정을 위한 DTO입니다.
+type TransitionConfigRequest struct {
+	AutoTransitionEnabled    bool    `json:"auto_transition_enabled"`
+	MatchRateThreshold       float64 `json:"match_rate_threshold"`
+	StabilityPeriodHours     int     `json:"stability_period_hours"`
+	MinRequestsForTransition int     `json:"min_requests_for_transition"`
+	RollbackThreshold        float64 `json:"rollback_threshold"`
+}
+
+// ToDomain는 TransitionConfigRequest를 Domain TransitionConfig로 변환합니다.
+func (req *TransitionConfigRequest) ToDomain() domain.TransitionConfig {
+	return domain.TransitionConfig{
+		AutoTransitionEnabled:    req.AutoTransitionEnabled,
+		MatchRateThreshold:       req.MatchRateThreshold,
+		StabilityPeriod:          time.Duration(req.StabilityPeriodHours) * time.Hour,
+		MinRequestsForTransition: req.MinRequestsForTransition,
+		RollbackThreshold:        req.RollbackThreshold,
+	}
+}
+
+// ComparisonConfigRequest는 비교 설정을 위한 DTO입니다.
+type ComparisonConfigRequest struct {
+	Enabled               bool     `json:"enabled"`
+	IgnoreFields          []string `json:"ignore_fields"`
+	AllowableDifference   float64  `json:"allowable_difference"`
+	StrictMode            bool     `json:"strict_mode"`
+	SaveComparisonHistory bool     `json:"save_comparison_history"`
+}
+
+// ToDomain는 ComparisonConfigRequest를 Domain ComparisonConfig로 변환합니다.
+func (req *ComparisonConfigRequest) ToDomain() domain.ComparisonConfig {
+	return domain.ComparisonConfig{
+		Enabled:               req.Enabled,
+		IgnoreFields:          req.IgnoreFields,
+		AllowableDifference:   req.AllowableDifference,
+		StrictMode:            req.StrictMode,
+		SaveComparisonHistory: req.SaveComparisonHistory,
+	}
 }
 
 // === 응답 DTO ===
@@ -313,6 +470,101 @@ func ToRoutingRuleResponseList(rules []*domain.RoutingRule) []*RoutingRuleRespon
 	responses := make([]*RoutingRuleResponse, len(rules))
 	for i, rule := range rules {
 		responses[i] = ToRoutingRuleResponse(rule)
+	}
+	return responses
+}
+
+// OrchestrationRuleResponse는 오케스트레이션 규칙 응답 DTO입니다.
+type OrchestrationRuleResponse struct {
+	ID               string                    `json:"id"`
+	Name             string                    `json:"name"`
+	Description      string                    `json:"description"`
+	RoutingRuleID    string                    `json:"routing_rule_id"`
+	LegacyEndpoint   *EndpointReference        `json:"legacy_endpoint"`
+	ModernEndpoint   *EndpointReference        `json:"modern_endpoint"`
+	CurrentMode      string                    `json:"current_mode"`
+	TransitionConfig *TransitionConfigResponse `json:"transition_config"`
+	ComparisonConfig *ComparisonConfigResponse `json:"comparison_config"`
+	IsActive         bool                      `json:"is_active"`
+	CreatedAt        time.Time                 `json:"created_at"`
+	UpdatedAt        time.Time                 `json:"updated_at"`
+}
+
+// FromDomain는 Domain OrchestrationRule을 OrchestrationRuleResponse로 변환합니다.
+func (resp *OrchestrationRuleResponse) FromDomain(rule *domain.OrchestrationRule) {
+	resp.ID = rule.ID
+	resp.Name = rule.Name
+	resp.Description = rule.Description
+	resp.RoutingRuleID = rule.RoutingRuleID
+	resp.CurrentMode = string(rule.CurrentMode)
+	resp.IsActive = rule.IsActive
+	resp.CreatedAt = rule.CreatedAt
+	resp.UpdatedAt = rule.UpdatedAt
+
+	// 엔드포인트 참조 설정
+	if rule.LegacyEndpointID != "" {
+		resp.LegacyEndpoint = &EndpointReference{ID: rule.LegacyEndpointID}
+	}
+	if rule.ModernEndpointID != "" {
+		resp.ModernEndpoint = &EndpointReference{ID: rule.ModernEndpointID}
+	}
+
+	// 설정 객체 변환
+	resp.TransitionConfig = &TransitionConfigResponse{}
+	resp.TransitionConfig.FromDomain(rule.TransitionConfig)
+
+	resp.ComparisonConfig = &ComparisonConfigResponse{}
+	resp.ComparisonConfig.FromDomain(rule.ComparisonConfig)
+}
+
+// TransitionConfigResponse는 전환 설정 응답 DTO입니다.
+type TransitionConfigResponse struct {
+	AutoTransitionEnabled    bool    `json:"auto_transition_enabled"`
+	MatchRateThreshold       float64 `json:"match_rate_threshold"`
+	StabilityPeriodHours     int     `json:"stability_period_hours"`
+	MinRequestsForTransition int     `json:"min_requests_for_transition"`
+	RollbackThreshold        float64 `json:"rollback_threshold"`
+}
+
+// FromDomain는 Domain TransitionConfig를 TransitionConfigResponse로 변환합니다.
+func (resp *TransitionConfigResponse) FromDomain(config domain.TransitionConfig) {
+	resp.AutoTransitionEnabled = config.AutoTransitionEnabled
+	resp.MatchRateThreshold = config.MatchRateThreshold
+	resp.StabilityPeriodHours = int(config.StabilityPeriod.Hours())
+	resp.MinRequestsForTransition = config.MinRequestsForTransition
+	resp.RollbackThreshold = config.RollbackThreshold
+}
+
+// ComparisonConfigResponse는 비교 설정 응답 DTO입니다.
+type ComparisonConfigResponse struct {
+	Enabled               bool     `json:"enabled"`
+	IgnoreFields          []string `json:"ignore_fields"`
+	AllowableDifference   float64  `json:"allowable_difference"`
+	StrictMode            bool     `json:"strict_mode"`
+	SaveComparisonHistory bool     `json:"save_comparison_history"`
+}
+
+// FromDomain는 Domain ComparisonConfig를 ComparisonConfigResponse로 변환합니다.
+func (resp *ComparisonConfigResponse) FromDomain(config domain.ComparisonConfig) {
+	resp.Enabled = config.Enabled
+	resp.IgnoreFields = config.IgnoreFields
+	resp.AllowableDifference = config.AllowableDifference
+	resp.StrictMode = config.StrictMode
+	resp.SaveComparisonHistory = config.SaveComparisonHistory
+}
+
+// ToOrchestrationRuleResponse는 Domain OrchestrationRule을 OrchestrationRuleResponse로 변환합니다.
+func ToOrchestrationRuleResponse(rule *domain.OrchestrationRule) *OrchestrationRuleResponse {
+	resp := &OrchestrationRuleResponse{}
+	resp.FromDomain(rule)
+	return resp
+}
+
+// ToOrchestrationRuleResponseList는 Domain OrchestrationRule 리스트를 OrchestrationRuleResponse 리스트로 변환합니다.
+func ToOrchestrationRuleResponseList(rules []*domain.OrchestrationRule) []*OrchestrationRuleResponse {
+	responses := make([]*OrchestrationRuleResponse, len(rules))
+	for i, rule := range rules {
+		responses[i] = ToOrchestrationRuleResponse(rule)
 	}
 	return responses
 }

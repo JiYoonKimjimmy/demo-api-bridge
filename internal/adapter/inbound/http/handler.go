@@ -1,8 +1,10 @@
 package http
 
 import (
+	"crypto/rand"
 	"demo-api-bridge/internal/core/domain"
 	"demo-api-bridge/internal/core/port"
+	"encoding/hex"
 	"net/http"
 	"time"
 
@@ -12,21 +14,30 @@ import (
 // Handler는 HTTP 인바운드 어댑터의 핵심 구조체입니다.
 // Core Layer의 서비스들을 사용하여 HTTP 요청을 처리합니다.
 type Handler struct {
-	bridgeService port.BridgeService
-	healthService port.HealthCheckService
-	logger        port.Logger
+	bridgeService        port.BridgeService
+	healthService        port.HealthCheckService
+	endpointService      port.EndpointService
+	routingService       port.RoutingService
+	orchestrationService port.OrchestrationService
+	logger               port.Logger
 }
 
 // NewHandler는 새로운 HTTP 핸들러를 생성합니다.
 func NewHandler(
 	bridgeService port.BridgeService,
 	healthService port.HealthCheckService,
+	endpointService port.EndpointService,
+	routingService port.RoutingService,
+	orchestrationService port.OrchestrationService,
 	logger port.Logger,
 ) *Handler {
 	return &Handler{
-		bridgeService: bridgeService,
-		healthService: healthService,
-		logger:        logger,
+		bridgeService:        bridgeService,
+		healthService:        healthService,
+		endpointService:      endpointService,
+		routingService:       routingService,
+		orchestrationService: orchestrationService,
+		logger:               logger,
 	}
 }
 
@@ -149,10 +160,402 @@ func generateRequestID() string {
 
 // randomString은 랜덤 문자열을 생성합니다.
 func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		// fallback to time-based approach
+		return hex.EncodeToString([]byte(time.Now().Format("20060102150405")))[:length]
 	}
-	return string(b)
+	return hex.EncodeToString(bytes)[:length]
+}
+
+// === APIEndpoint CRUD 핸들러 ===
+
+// CreateEndpoint는 새로운 엔드포인트를 생성합니다.
+func (h *Handler) CreateEndpoint(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req CreateEndpointRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithContext(ctx).Error("invalid request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		return
+	}
+
+	// 도메인 객체 생성
+	endpoint := req.ToDomain()
+	endpoint.ID = generateEndpointID()
+
+	// 서비스 호출
+	if err := h.endpointService.CreateEndpoint(ctx, endpoint); err != nil {
+		h.logger.WithContext(ctx).Error("failed to create endpoint", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create endpoint", "details": err.Error()})
+		return
+	}
+
+	// 응답 생성
+	response := ToEndpointResponse(endpoint)
+	c.JSON(http.StatusCreated, response)
+}
+
+// GetEndpoint는 엔드포인트를 조회합니다.
+func (h *Handler) GetEndpoint(c *gin.Context) {
+	ctx := c.Request.Context()
+	endpointID := c.Param("id")
+
+	endpoint, err := h.endpointService.GetEndpoint(ctx, endpointID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("failed to get endpoint", "endpoint_id", endpointID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "endpoint not found", "details": err.Error()})
+		return
+	}
+
+	response := ToEndpointResponse(endpoint)
+	c.JSON(http.StatusOK, response)
+}
+
+// ListEndpoints는 모든 엔드포인트를 조회합니다.
+func (h *Handler) ListEndpoints(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	endpoints, err := h.endpointService.ListEndpoints(ctx)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("failed to list endpoints", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list endpoints", "details": err.Error()})
+		return
+	}
+
+	responses := ToEndpointResponseList(endpoints)
+	c.JSON(http.StatusOK, gin.H{"endpoints": responses, "count": len(responses)})
+}
+
+// UpdateEndpoint는 엔드포인트를 수정합니다.
+func (h *Handler) UpdateEndpoint(c *gin.Context) {
+	ctx := c.Request.Context()
+	endpointID := c.Param("id")
+
+	var req UpdateEndpointRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithContext(ctx).Error("invalid request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		return
+	}
+
+	// 기존 엔드포인트 조회
+	endpoint, err := h.endpointService.GetEndpoint(ctx, endpointID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("endpoint not found", "endpoint_id", endpointID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "endpoint not found", "details": err.Error()})
+		return
+	}
+
+	// 업데이트 적용
+	req.ApplyTo(endpoint)
+
+	// 서비스 호출
+	if err := h.endpointService.UpdateEndpoint(ctx, endpoint); err != nil {
+		h.logger.WithContext(ctx).Error("failed to update endpoint", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update endpoint", "details": err.Error()})
+		return
+	}
+
+	// 응답 생성
+	response := ToEndpointResponse(endpoint)
+	c.JSON(http.StatusOK, response)
+}
+
+// DeleteEndpoint는 엔드포인트를 삭제합니다.
+func (h *Handler) DeleteEndpoint(c *gin.Context) {
+	ctx := c.Request.Context()
+	endpointID := c.Param("id")
+
+	if err := h.endpointService.DeleteEndpoint(ctx, endpointID); err != nil {
+		h.logger.WithContext(ctx).Error("failed to delete endpoint", "endpoint_id", endpointID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete endpoint", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
+}
+
+// generateEndpointID는 엔드포인트 ID를 생성합니다.
+func generateEndpointID() string {
+	return "endpoint-" + time.Now().Format("20060102150405") + "-" + randomString(6)
+}
+
+// === RoutingRule CRUD 핸들러 ===
+
+// CreateRoutingRule은 새로운 라우팅 규칙을 생성합니다.
+func (h *Handler) CreateRoutingRule(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req CreateRoutingRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithContext(ctx).Error("invalid request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		return
+	}
+
+	// 도메인 객체 생성
+	rule := req.ToDomain()
+	rule.ID = generateRoutingRuleID()
+
+	// 서비스 호출
+	if err := h.routingService.CreateRule(ctx, rule); err != nil {
+		h.logger.WithContext(ctx).Error("failed to create routing rule", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create routing rule", "details": err.Error()})
+		return
+	}
+
+	// 응답 생성
+	response := ToRoutingRuleResponse(rule)
+	c.JSON(http.StatusCreated, response)
+}
+
+// GetRoutingRule은 라우팅 규칙을 조회합니다.
+func (h *Handler) GetRoutingRule(c *gin.Context) {
+	ctx := c.Request.Context()
+	ruleID := c.Param("id")
+
+	rule, err := h.routingService.GetRule(ctx, ruleID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("failed to get routing rule", "rule_id", ruleID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "routing rule not found", "details": err.Error()})
+		return
+	}
+
+	response := ToRoutingRuleResponse(rule)
+	c.JSON(http.StatusOK, response)
+}
+
+// ListRoutingRules는 모든 라우팅 규칙을 조회합니다.
+func (h *Handler) ListRoutingRules(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	rules, err := h.routingService.ListRules(ctx)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("failed to list routing rules", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list routing rules", "details": err.Error()})
+		return
+	}
+
+	responses := ToRoutingRuleResponseList(rules)
+	c.JSON(http.StatusOK, gin.H{"routing_rules": responses, "count": len(responses)})
+}
+
+// UpdateRoutingRule은 라우팅 규칙을 수정합니다.
+func (h *Handler) UpdateRoutingRule(c *gin.Context) {
+	ctx := c.Request.Context()
+	ruleID := c.Param("id")
+
+	var req UpdateRoutingRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithContext(ctx).Error("invalid request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		return
+	}
+
+	// 기존 라우팅 규칙 조회
+	rule, err := h.routingService.GetRule(ctx, ruleID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("routing rule not found", "rule_id", ruleID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "routing rule not found", "details": err.Error()})
+		return
+	}
+
+	// 업데이트 적용
+	req.ApplyTo(rule)
+
+	// 서비스 호출
+	if err := h.routingService.UpdateRule(ctx, rule); err != nil {
+		h.logger.WithContext(ctx).Error("failed to update routing rule", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update routing rule", "details": err.Error()})
+		return
+	}
+
+	// 응답 생성
+	response := ToRoutingRuleResponse(rule)
+	c.JSON(http.StatusOK, response)
+}
+
+// DeleteRoutingRule은 라우팅 규칙을 삭제합니다.
+func (h *Handler) DeleteRoutingRule(c *gin.Context) {
+	ctx := c.Request.Context()
+	ruleID := c.Param("id")
+
+	if err := h.routingService.DeleteRule(ctx, ruleID); err != nil {
+		h.logger.WithContext(ctx).Error("failed to delete routing rule", "rule_id", ruleID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete routing rule", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
+}
+
+// generateRoutingRuleID는 라우팅 규칙 ID를 생성합니다.
+func generateRoutingRuleID() string {
+	return "rule-" + time.Now().Format("20060102150405") + "-" + randomString(6)
+}
+
+// === OrchestrationRule CRUD 핸들러 ===
+
+// CreateOrchestrationRule은 새로운 오케스트레이션 규칙을 생성합니다.
+func (h *Handler) CreateOrchestrationRule(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req CreateOrchestrationRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithContext(ctx).Error("invalid request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		return
+	}
+
+	// 도메인 객체 생성
+	rule := req.ToDomain()
+	rule.ID = generateOrchestrationRuleID()
+
+	// 서비스 호출
+	if err := h.orchestrationService.CreateOrchestrationRule(ctx, rule); err != nil {
+		h.logger.WithContext(ctx).Error("failed to create orchestration rule", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create orchestration rule", "details": err.Error()})
+		return
+	}
+
+	// 응답 생성
+	response := ToOrchestrationRuleResponse(rule)
+	c.JSON(http.StatusCreated, response)
+}
+
+// GetOrchestrationRule은 오케스트레이션 규칙을 조회합니다.
+func (h *Handler) GetOrchestrationRule(c *gin.Context) {
+	ctx := c.Request.Context()
+	routingRuleID := c.Param("id")
+
+	rule, err := h.orchestrationService.GetOrchestrationRule(ctx, routingRuleID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("failed to get orchestration rule", "routing_rule_id", routingRuleID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "orchestration rule not found", "details": err.Error()})
+		return
+	}
+
+	response := ToOrchestrationRuleResponse(rule)
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateOrchestrationRule은 오케스트레이션 규칙을 수정합니다.
+func (h *Handler) UpdateOrchestrationRule(c *gin.Context) {
+	ctx := c.Request.Context()
+	routingRuleID := c.Param("id")
+
+	var req UpdateOrchestrationRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithContext(ctx).Error("invalid request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		return
+	}
+
+	// 기존 오케스트레이션 규칙 조회
+	rule, err := h.orchestrationService.GetOrchestrationRule(ctx, routingRuleID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("orchestration rule not found", "routing_rule_id", routingRuleID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "orchestration rule not found", "details": err.Error()})
+		return
+	}
+
+	// 업데이트 적용
+	req.ApplyTo(rule)
+
+	// 서비스 호출
+	if err := h.orchestrationService.UpdateOrchestrationRule(ctx, rule); err != nil {
+		h.logger.WithContext(ctx).Error("failed to update orchestration rule", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update orchestration rule", "details": err.Error()})
+		return
+	}
+
+	// 응답 생성
+	response := ToOrchestrationRuleResponse(rule)
+	c.JSON(http.StatusOK, response)
+}
+
+// EvaluateTransition은 전환 가능성을 평가합니다.
+func (h *Handler) EvaluateTransition(c *gin.Context) {
+	ctx := c.Request.Context()
+	routingRuleID := c.Param("id")
+
+	// 오케스트레이션 규칙 조회
+	rule, err := h.orchestrationService.GetOrchestrationRule(ctx, routingRuleID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("orchestration rule not found", "routing_rule_id", routingRuleID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "orchestration rule not found", "details": err.Error()})
+		return
+	}
+
+	// 전환 평가
+	canTransition, err := h.orchestrationService.EvaluateTransition(ctx, rule)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("failed to evaluate transition", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to evaluate transition", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"can_transition": canTransition,
+		"current_mode":   string(rule.CurrentMode),
+		"rule_id":        rule.ID,
+	})
+}
+
+// ExecuteTransition은 API 모드를 전환합니다.
+func (h *Handler) ExecuteTransition(c *gin.Context) {
+	ctx := c.Request.Context()
+	routingRuleID := c.Param("id")
+
+	var req struct {
+		NewMode string `json:"new_mode" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithContext(ctx).Error("invalid request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		return
+	}
+
+	// 오케스트레이션 규칙 조회
+	rule, err := h.orchestrationService.GetOrchestrationRule(ctx, routingRuleID)
+	if err != nil {
+		h.logger.WithContext(ctx).Error("orchestration rule not found", "routing_rule_id", routingRuleID, "error", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "orchestration rule not found", "details": err.Error()})
+		return
+	}
+
+	// 새로운 모드 변환
+	var newMode domain.APIMode
+	switch req.NewMode {
+	case "LEGACY_ONLY":
+		newMode = domain.LEGACY_ONLY
+	case "MODERN_ONLY":
+		newMode = domain.MODERN_ONLY
+	case "PARALLEL":
+		newMode = domain.PARALLEL
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid mode", "details": "mode must be LEGACY_ONLY, MODERN_ONLY, or PARALLEL"})
+		return
+	}
+
+	// 전환 실행
+	if err := h.orchestrationService.ExecuteTransition(ctx, rule, newMode); err != nil {
+		h.logger.WithContext(ctx).Error("failed to execute transition", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to execute transition", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "transition executed successfully",
+		"from_mode": string(rule.CurrentMode),
+		"to_mode":   string(newMode),
+		"rule_id":   rule.ID,
+	})
+}
+
+// generateOrchestrationRuleID는 오케스트레이션 규칙 ID를 생성합니다.
+func generateOrchestrationRuleID() string {
+	return "orch-" + time.Now().Format("20060102150405") + "-" + randomString(6)
 }

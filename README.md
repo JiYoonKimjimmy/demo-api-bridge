@@ -34,6 +34,57 @@ demo-api-bridge/
 └── test/                    # 통합 테스트
 ```
 
+## 🔧 주요 기능
+
+### ✅ 완료된 기능
+
+- **HTTP 서버**: Gin 프레임워크 기반 RESTful API 서버
+- **Health Check**: `/health`, `/ready`, `/api/v1/status` 엔드포인트
+- **로깅 시스템**: Zap 기반 구조화된 로깅, Trace ID 지원
+- **메트릭 시스템**: Prometheus 기반 메트릭 수집
+- **캐시 시스템**: Redis 연동 (Mock Repository 구현)
+- **HTTP Client**: 외부 API 호출을 위한 HTTP 클라이언트
+- **Graceful Shutdown**: 안전한 서버 종료 메커니즘
+- **미들웨어**: 로깅, 메트릭, CORS, Rate Limiting, 보안 헤더
+- **Domain 모델**: 완전한 비즈니스 로직 모델 정의
+- **Repository 패턴**: Mock 구현체로 데이터 액세스 레이어 완성
+- **병렬 호출 시스템**: 레거시/모던 API 동시 호출 메커니즘
+- **Circuit Breaker**: Sony gobreaker 기반 장애 격리 및 복구
+- **JSON 비교 엔진**: 응답 비교 및 일치율 계산 (95% 이상 일치)
+- **오케스트레이션 시스템**: 자동 전환 결정 로직
+- **Transition Controller**: 전환 실행 및 롤백 로직
+- **OracleDB 연동**: 실제 데이터베이스 연결 및 Repository 구현
+- **모니터링 대시보드**: Grafana + Prometheus + AlertManager 완전 구축
+- **성능 테스트**: 벤치마크 및 부하 테스트 프레임워크 구축
+- **CRUD API**: 모든 모델에 대한 완전한 CRUD 인터페이스 ✅
+
+### 🆕 새로 추가된 CRUD API
+
+API Bridge 시스템의 모든 모델에 대한 완전한 CRUD API가 구현되었습니다:
+
+#### APIEndpoint CRUD
+- `POST /api/v1/endpoints` - 엔드포인트 생성
+- `GET /api/v1/endpoints` - 엔드포인트 목록 조회
+- `GET /api/v1/endpoints/{id}` - 엔드포인트 조회
+- `PUT /api/v1/endpoints/{id}` - 엔드포인트 수정
+- `DELETE /api/v1/endpoints/{id}` - 엔드포인트 삭제
+
+#### RoutingRule CRUD
+- `POST /api/v1/routing-rules` - 라우팅 규칙 생성
+- `GET /api/v1/routing-rules` - 라우팅 규칙 목록 조회
+- `GET /api/v1/routing-rules/{id}` - 라우팅 규칙 조회
+- `PUT /api/v1/routing-rules/{id}` - 라우팅 규칙 수정
+- `DELETE /api/v1/routing-rules/{id}` - 라우팅 규칙 삭제
+
+#### OrchestrationRule CRUD
+- `POST /api/v1/orchestration-rules` - 오케스트레이션 규칙 생성
+- `GET /api/v1/orchestration-rules/{id}` - 오케스트레이션 규칙 조회
+- `PUT /api/v1/orchestration-rules/{id}` - 오케스트레이션 규칙 수정
+- `GET /api/v1/orchestration-rules/{id}/evaluate-transition` - 전환 가능성 평가
+- `POST /api/v1/orchestration-rules/{id}/execute-transition` - 전환 실행
+
+자세한 API 문서는 [CRUD API 문서](docs/CRUD_API_DOCUMENTATION.md)를 참조하세요.
+
 ## 🚀 시작하기
 
 ### 필수 요구사항

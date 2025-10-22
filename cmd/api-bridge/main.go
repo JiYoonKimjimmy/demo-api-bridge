@@ -66,6 +66,9 @@ func main() {
 	httpHandler := httpadapter.NewHandler(
 		dependencies.BridgeService,
 		dependencies.HealthService,
+		dependencies.EndpointService,
+		dependencies.RoutingService,
+		dependencies.OrchestrationService,
 		dependencies.Logger,
 	)
 
@@ -114,18 +117,21 @@ func main() {
 
 // Dependencies는 애플리케이션의 모든 의존성을 포함합니다.
 type Dependencies struct {
-	Logger            port.Logger
-	Metrics           port.MetricsCollector
-	Cache             port.CacheRepository
-	RoutingRepo       port.RoutingRepository
-	EndpointRepo      port.EndpointRepository
-	OrchestrationRepo port.OrchestrationRepository
-	ComparisonRepo    port.ComparisonRepository
-	CircuitBreaker    port.CircuitBreakerService
-	ExternalAPI       port.ExternalAPIClient
-	BridgeService     port.BridgeService
-	HealthService     port.HealthCheckService
-	RedisClient       *redis.Client
+	Logger               port.Logger
+	Metrics              port.MetricsCollector
+	Cache                port.CacheRepository
+	RoutingRepo          port.RoutingRepository
+	EndpointRepo         port.EndpointRepository
+	OrchestrationRepo    port.OrchestrationRepository
+	ComparisonRepo       port.ComparisonRepository
+	CircuitBreaker       port.CircuitBreakerService
+	ExternalAPI          port.ExternalAPIClient
+	BridgeService        port.BridgeService
+	HealthService        port.HealthCheckService
+	EndpointService      port.EndpointService
+	RoutingService       port.RoutingService
+	OrchestrationService port.OrchestrationService
+	RedisClient          *redis.Client
 }
 
 // initializeDependencies는 모든 의존성을 초기화합니다.
@@ -224,6 +230,10 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 
 	// 서비스 초기화
 	healthService := service.NewHealthCheckService(routingRepo, endpointRepo, cacheRepo, log)
+
+	endpointService := service.NewEndpointService(endpointRepo, log, metricsCollector)
+	routingService := service.NewRoutingService(routingRepo, cacheRepo, log, metricsCollector)
+
 	orchestrationService := service.NewOrchestrationService(
 		orchestrationRepo,
 		comparisonRepo,
@@ -231,6 +241,7 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 		log,
 		metricsCollector,
 	)
+
 	bridgeService := service.NewBridgeService(
 		routingRepo,
 		endpointRepo,
@@ -244,18 +255,21 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 	)
 
 	return &Dependencies{
-		Logger:            log,
-		Metrics:           metricsCollector,
-		Cache:             cacheRepo,
-		RoutingRepo:       routingRepo,
-		EndpointRepo:      endpointRepo,
-		OrchestrationRepo: orchestrationRepo,
-		ComparisonRepo:    comparisonRepo,
-		CircuitBreaker:    circuitBreakerService,
-		ExternalAPI:       httpClient,
-		BridgeService:     bridgeService,
-		HealthService:     healthService,
-		RedisClient:       redisClient,
+		Logger:               log,
+		Metrics:              metricsCollector,
+		Cache:                cacheRepo,
+		RoutingRepo:          routingRepo,
+		EndpointRepo:         endpointRepo,
+		OrchestrationRepo:    orchestrationRepo,
+		ComparisonRepo:       comparisonRepo,
+		CircuitBreaker:       circuitBreakerService,
+		ExternalAPI:          httpClient,
+		BridgeService:        bridgeService,
+		HealthService:        healthService,
+		EndpointService:      endpointService,
+		RoutingService:       routingService,
+		OrchestrationService: orchestrationService,
+		RedisClient:          redisClient,
 	}, nil
 }
 
@@ -268,6 +282,31 @@ func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
 
 	// API Bridge - 모든 요청 처리
 	router.Any("/api/v1/bridge/*path", handler.ProcessBridgeRequest)
+
+	// === CRUD API 엔드포인트 ===
+
+	// APIEndpoint CRUD
+	router.POST("/api/v1/endpoints", handler.CreateEndpoint)
+	router.GET("/api/v1/endpoints", handler.ListEndpoints)
+	router.GET("/api/v1/endpoints/:id", handler.GetEndpoint)
+	router.PUT("/api/v1/endpoints/:id", handler.UpdateEndpoint)
+	router.DELETE("/api/v1/endpoints/:id", handler.DeleteEndpoint)
+
+	// RoutingRule CRUD
+	router.POST("/api/v1/routing-rules", handler.CreateRoutingRule)
+	router.GET("/api/v1/routing-rules", handler.ListRoutingRules)
+	router.GET("/api/v1/routing-rules/:id", handler.GetRoutingRule)
+	router.PUT("/api/v1/routing-rules/:id", handler.UpdateRoutingRule)
+	router.DELETE("/api/v1/routing-rules/:id", handler.DeleteRoutingRule)
+
+	// OrchestrationRule CRUD
+	router.POST("/api/v1/orchestration-rules", handler.CreateOrchestrationRule)
+	router.GET("/api/v1/orchestration-rules/:id", handler.GetOrchestrationRule)
+	router.PUT("/api/v1/orchestration-rules/:id", handler.UpdateOrchestrationRule)
+
+	// OrchestrationRule 전환 관련
+	router.GET("/api/v1/orchestration-rules/:id/evaluate-transition", handler.EvaluateTransition)
+	router.POST("/api/v1/orchestration-rules/:id/execute-transition", handler.ExecuteTransition)
 
 	// Metrics
 	router.GET("/metrics", handler.Metrics)
