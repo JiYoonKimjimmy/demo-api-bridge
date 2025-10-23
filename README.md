@@ -237,22 +237,48 @@ GET /api/v1/status
 
 ## 🧪 테스트
 
+API Bridge는 다양한 레벨의 테스트를 지원합니다.
+
+### 단위 테스트
 ```bash
-# 전체 테스트 실행
-make test
+# Windows
+.\scripts\unit-test.ps1
 
-# 커버리지 확인
-make test-coverage
-
-# 린트 실행
-make lint
+# Linux/macOS
+./scripts/unit-test.sh
 ```
+
+### 통합 테스트
+```bash
+./scripts/test_crud_api.sh
+```
+
+### 성능 테스트
+```bash
+# Windows
+.\scripts\performance-test.ps1
+
+# Linux/macOS
+./scripts/performance-test.sh
+```
+
+### 부하 테스트 (Vegeta)
+```bash
+# Windows
+.\scripts\vegeta-load-test.ps1 -Rate 1000 -Duration 60
+
+# Linux/macOS
+./scripts/vegeta-load-test.sh http://localhost:10019/api/users 60 1000
+```
+
+상세한 테스트 가이드는 [테스트 가이드 문서](docs/TESTING_GUIDE.md)를 참조하세요.
 
 ## 📖 문서
 
 - [헥사고날 아키텍처 가이드](./docs/HEXAGONAL_ARCHITECTURE.md)
 - [구현 가이드](./docs/IMPLEMENTATION_GUIDE.md)
 - [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)
+- [테스트 가이드](./docs/TESTING_GUIDE.md)
 - [Go 개발 환경 설정](./docs/GOLANG_SETUP_GUIDE.md)
 - [프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)
 - [프로파일링 결과](./docs/PROFILING_RESULTS.md)
