@@ -11,12 +11,30 @@ import (
 	"github.com/sony/gobreaker"
 )
 
-// circuitBreakerService는 Circuit Breaker 서비스를 구현합니다.
+// circuitBreakerService는 Circuit Breaker 패턴을 구현하는 서비스입니다.
+//
+// Circuit Breaker는 장애가 발생한 외부 시스템에 대한 호출을 차단하여
+// 시스템 전체의 안정성을 보호합니다. Sony의 gobreaker 라이브러리를 사용하여
+// 다음 세 가지 상태를 관리합니다:
+//
+// States:
+//   - Closed (정상): 모든 요청이 통과, 에러 발생 시 카운트 증가
+//   - Open (차단): 모든 요청이 즉시 실패, Timeout 후 Half-Open으로 전환
+//   - Half-Open (반개방): 제한된 수의 요청만 통과, 성공 시 Closed로 복구
+//
+// 장애 격리 메커니즘:
+//   - 연속 실패 임계값 초과 시 자동으로 Circuit Open
+//   - 일정 시간(Timeout) 후 자동으로 Half-Open 상태로 복구 시도
+//   - Half-Open에서 성공하면 Closed로 복구, 실패하면 다시 Open
+//
+// 성능 특성:
+//   - Circuit Open 상태에서는 즉시 에러 반환 (지연시간 0ms)
+//   - 상태 확인은 Thread-Safe한 RWMutex 사용
 type circuitBreakerService struct {
-	breakers map[string]*gobreaker.CircuitBreaker
-	mutex    sync.RWMutex
-	logger   port.Logger
-	metrics  port.MetricsCollector
+	breakers map[string]*gobreaker.CircuitBreaker // 이름별 Circuit Breaker 맵
+	mutex    sync.RWMutex                         // Thread-Safe 접근을 위한 뮤텍스
+	logger   port.Logger                          // 로거
+	metrics  port.MetricsCollector                // 메트릭 수집기
 }
 
 // NewCircuitBreakerService는 새로운 Circuit Breaker 서비스를 생성합니다.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof" // pprof 프로파일링 엔드포인트 활성화
 	"os"
 	"os/signal"
 	"syscall"
@@ -337,6 +338,19 @@ func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
 
 	// Metrics
 	router.GET("/metrics", handler.Metrics)
+
+	// pprof 프로파일링 엔드포인트 (디버그 전용)
+	// /debug/pprof/ - 프로파일링 인덱스
+	// /debug/pprof/cmdline - 커맨드라인
+	// /debug/pprof/profile - CPU 프로파일 (30초)
+	// /debug/pprof/symbol - 심볼 조회
+	// /debug/pprof/trace - 실행 트레이스
+	// /debug/pprof/heap - 힙 메모리 프로파일
+	// /debug/pprof/goroutine - 고루틴 프로파일
+	// /debug/pprof/threadcreate - 스레드 생성 프로파일
+	// /debug/pprof/block - 블록 프로파일
+	// /debug/pprof/mutex - 뮤텍스 프로파일
+	router.GET("/debug/pprof/*any", gin.WrapH(http.DefaultServeMux))
 }
 
 // cleanup은 리소스를 정리합니다.

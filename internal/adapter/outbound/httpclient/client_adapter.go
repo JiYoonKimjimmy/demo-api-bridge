@@ -24,9 +24,18 @@ func NewHTTPClientAdapter(timeout time.Duration) port.ExternalAPIClient {
 		client: &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
-				MaxIdleConns:        100,
-				MaxIdleConnsPerHost: 10,
-				IdleConnTimeout:     90 * time.Second,
+				// 성능 최적화: Connection Pool 크기 증가
+				MaxIdleConns:        200,              // 전체 유휴 연결 수 (기존 100 → 200)
+				MaxIdleConnsPerHost: 50,               // 호스트당 유휴 연결 수 (기존 10 → 50)
+				MaxConnsPerHost:     100,              // 호스트당 최대 연결 수 (신규)
+				IdleConnTimeout:     90 * time.Second, // 유휴 연결 타임아웃
+				// 추가 최적화 설정
+				DisableKeepAlives:      false,     // Keep-Alive 활성화
+				DisableCompression:     false,     // 압축 활성화
+				ForceAttemptHTTP2:      true,      // HTTP/2 시도
+				MaxResponseHeaderBytes: 1 << 20,   // 1MB
+				WriteBufferSize:        32 * 1024, // 32KB 쓰기 버퍼
+				ReadBufferSize:         32 * 1024, // 32KB 읽기 버퍼
 			},
 		},
 		timeout: timeout,
@@ -39,9 +48,18 @@ func NewHTTPClientAdapterWithCircuitBreaker(timeout time.Duration, circuitBreake
 		client: &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
-				MaxIdleConns:        100,
-				MaxIdleConnsPerHost: 10,
-				IdleConnTimeout:     90 * time.Second,
+				// 성능 최적화: Connection Pool 크기 증가
+				MaxIdleConns:        200,              // 전체 유휴 연결 수 (기존 100 → 200)
+				MaxIdleConnsPerHost: 50,               // 호스트당 유휴 연결 수 (기존 10 → 50)
+				MaxConnsPerHost:     100,              // 호스트당 최대 연결 수 (신규)
+				IdleConnTimeout:     90 * time.Second, // 유휴 연결 타임아웃
+				// 추가 최적화 설정
+				DisableKeepAlives:      false,     // Keep-Alive 활성화
+				DisableCompression:     false,     // 압축 활성화
+				ForceAttemptHTTP2:      true,      // HTTP/2 시도
+				MaxResponseHeaderBytes: 1 << 20,   // 1MB
+				WriteBufferSize:        32 * 1024, // 32KB 쓰기 버퍼
+				ReadBufferSize:         32 * 1024, // 32KB 읽기 버퍼
 			},
 		},
 		timeout:        timeout,

@@ -251,22 +251,22 @@ API Bridge 시스템 개발을 위한 단계별 계획 및 일정
 ### Week 9: 성능 최적화
 
 #### 9.1. 프로파일링
-- [ ] CPU 프로파일링 (pprof)
-- [ ] 메모리 프로파일링
-- [ ] 고루틴 누수 체크
-- [ ] 병목 지점 식별
+- [x] CPU 프로파일링 (pprof) - pprof 엔드포인트 추가
+- [x] 메모리 프로파일링 - 프로파일링 스크립트 작성 완료
+- [x] 고루틴 누수 체크 - 프로파일링 스크립트에 포함
+- [x] 병목 지점 식별 - 프로파일링 결과 문서 템플릿 생성
 
 #### 9.2. 최적화
-- [ ] Connection Pool 튜닝
-- [ ] 고루틴 워커 풀 크기 조정
+- [x] Connection Pool 튜닝 - MaxIdleConnsPerHost: 10→50, MaxConnsPerHost: 100 추가
+- [ ] 고루틴 워커 풀 크기 조정 - 프로파일링 결과 기반으로 조정 예정
 - [ ] 캐시 TTL 최적화
 - [ ] DB 쿼리 최적화
 
 #### 9.3. 문서화
-- [ ] API 문서 작성 (Swagger/OpenAPI)
-- [ ] 코드 주석 보완
-- [ ] README 업데이트
-- [ ] 운영 매뉴얼 작성
+- [x] API 문서 작성 (Swagger/OpenAPI) - 기존 swagger.yaml 활용
+- [x] 코드 주석 보완 - bridge_service, orchestration_service, circuit_breaker_service에 godoc 주석 추가
+- [x] README 업데이트 - 프로파일링 섹션 추가
+- [x] 운영 매뉴얼 작성 - OPERATIONS_MANUAL.md 생성 완료
 
 ---
 

@@ -1,3 +1,7 @@
+// Package service는 API Bridge의 핵심 비즈니스 로직을 구현합니다.
+//
+// 이 패키지는 Hexagonal Architecture의 Application Layer에 해당하며,
+// 도메인 로직을 조율하고 인바운드/아웃바운드 포트를 연결합니다.
 package service
 
 import (
@@ -8,20 +12,48 @@ import (
 	"time"
 )
 
-// bridgeService는 BridgeService 인터페이스를 구현합니다.
+// bridgeService는 BridgeService 인터페이스를 구현하는 핵심 서비스입니다.
+//
+// 이 서비스는 다음의 책임을 가집니다:
+//   - 클라이언트 요청을 적절한 외부 API로 라우팅
+//   - 레거시/모던 API의 병렬 호출 및 응답 비교
+//   - 자동 전환 로직 실행 및 모니터링
+//   - 캐싱 및 메트릭 수집
+//
+// 사용 예:
+//
+//	service := NewBridgeService(...)
+//	response, err := service.ProcessRequest(ctx, request)
 type bridgeService struct {
-	routingRepo       port.RoutingRepository
-	endpointRepo      port.EndpointRepository
-	orchestrationRepo port.OrchestrationRepository
-	comparisonRepo    port.ComparisonRepository
-	orchestrationSvc  port.OrchestrationService
-	externalAPI       port.ExternalAPIClient
-	cache             port.CacheRepository
-	logger            port.Logger
-	metrics           port.MetricsCollector
+	routingRepo       port.RoutingRepository       // 라우팅 규칙 저장소
+	endpointRepo      port.EndpointRepository      // API 엔드포인트 저장소
+	orchestrationRepo port.OrchestrationRepository // 오케스트레이션 규칙 저장소
+	comparisonRepo    port.ComparisonRepository    // 비교 결과 저장소
+	orchestrationSvc  port.OrchestrationService    // 오케스트레이션 서비스
+	externalAPI       port.ExternalAPIClient       // 외부 API 클라이언트
+	cache             port.CacheRepository         // 캐시 저장소
+	logger            port.Logger                  // 로거
+	metrics           port.MetricsCollector        // 메트릭 수집기
 }
 
-// NewBridgeService는 새로운 BridgeService를 생성합니다.
+// NewBridgeService는 새로운 BridgeService 인스턴스를 생성합니다.
+//
+// 이 팩토리 함수는 의존성 주입 패턴을 사용하여 필요한 모든 저장소와 서비스를 주입받습니다.
+// 반환된 서비스는 즉시 요청 처리를 시작할 수 있습니다.
+//
+// Parameters:
+//   - routingRepo: 라우팅 규칙을 조회하는 저장소
+//   - endpointRepo: API 엔드포인트 정보를 조회하는 저장소
+//   - orchestrationRepo: 오케스트레이션 규칙을 조회하는 저장소
+//   - comparisonRepo: 비교 결과를 저장하는 저장소
+//   - orchestrationSvc: 병렬 호출 및 응답 비교를 수행하는 서비스
+//   - externalAPI: 외부 API 호출을 담당하는 클라이언트
+//   - cache: 라우팅 규칙 및 응답을 캐싱하는 저장소
+//   - logger: 구조화된 로깅을 제공하는 로거
+//   - metrics: Prometheus 메트릭을 수집하는 컬렉터
+//
+// Returns:
+//   - port.BridgeService: 완전히 초기화된 Bridge 서비스 인터페이스
 func NewBridgeService(
 	routingRepo port.RoutingRepository,
 	endpointRepo port.EndpointRepository,
@@ -46,7 +78,31 @@ func NewBridgeService(
 	}
 }
 
-// ProcessRequest는 API 요청을 처리하고 응답을 반환합니다.
+// ProcessRequest는 클라이언트로부터 받은 API 요청을 처리하고 응답을 반환합니다.
+//
+// 이 메서드는 API Bridge의 핵심 로직으로, 다음 단계를 수행합니다:
+//  1. 요청 유효성 검증
+//  2. 라우팅 규칙 조회 (캐시 우선, DB 조회)
+//  3. 오케스트레이션 규칙 확인
+//  4. 요청 처리 모드 결정:
+//     - PARALLEL: 레거시/모던 API 병렬 호출 후 레거시 응답 반환
+//     - MODERN_ONLY: 모던 API만 호출
+//     - LEGACY_ONLY: 레거시 API만 호출
+//  5. 응답 비교 및 전환 로직 실행 (PARALLEL 모드)
+//  6. 메트릭 수집 및 로깅
+//
+// Parameters:
+//   - ctx: 요청의 컨텍스트 (타임아웃, 취소, Trace ID 포함)
+//   - request: 처리할 요청 객체
+//
+// Returns:
+//   - *domain.Response: 외부 API로부터 받은 응답
+//   - error: 요청 처리 중 발생한 에러
+//
+// 에러 케이스:
+//   - domain.ErrInvalidRequest: 요청 검증 실패
+//   - domain.ErrRouteNotFound: 매칭되는 라우팅 규칙 없음
+//   - domain.ErrExternalAPIFailed: 외부 API 호출 실패
 func (s *bridgeService) ProcessRequest(ctx context.Context, request *domain.Request) (*domain.Response, error) {
 	start := time.Now()
 

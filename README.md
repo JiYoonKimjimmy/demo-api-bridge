@@ -255,6 +255,8 @@ make lint
 - [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)
 - [Go 개발 환경 설정](./docs/GOLANG_SETUP_GUIDE.md)
 - [프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)
+- [프로파일링 결과](./docs/PROFILING_RESULTS.md)
+- [운영 매뉴얼](./docs/OPERATIONS_MANUAL.md)
 
 ## 🛠️ 개발
 
@@ -279,6 +281,37 @@ make build
 ## 📊 모니터링
 
 Prometheus 메트릭은 `/metrics` 엔드포인트에서 확인할 수 있습니다 (설정 시).
+
+### 프로파일링
+
+성능 분석을 위한 pprof 프로파일링 엔드포인트가 제공됩니다:
+
+```bash
+# Windows - 모든 프로파일 수집
+.\scripts\profile.ps1 -Type all
+
+# Linux/macOS - CPU 프로파일만 수집 (30초)
+./scripts/profile.sh cpu 30
+
+# 특정 프로파일 수집
+.\scripts\profile.ps1 -Type cpu      # CPU 프로파일
+.\scripts\profile.ps1 -Type mem      # 메모리 프로파일
+.\scripts\profile.ps1 -Type goroutine # 고루틴 프로파일
+```
+
+프로파일 분석:
+```bash
+# 웹 UI로 분석 (권장)
+go tool pprof -http=:8081 profiling-results/cpu_profile_*.pprof
+
+# 터미널에서 분석
+go tool pprof profiling-results/cpu_profile_*.pprof
+(pprof) top10        # 상위 10개 함수
+(pprof) list <func>  # 특정 함수의 라인별 분석
+(pprof) web          # 그래프 시각화
+```
+
+자세한 내용은 [프로파일링 결과 문서](./docs/PROFILING_RESULTS.md)를 참조하세요.
 
 ## 📚 API 문서화
 
