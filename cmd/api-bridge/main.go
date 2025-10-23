@@ -1,22 +1,3 @@
-// @title API Bridge Service
-// @version 1.0
-// @description API Bridge Service for Legacy and Modern System Integration
-// @termsOfService http://swagger.io/terms/
-
-// @contact.name API Support
-// @contact.url http://www.swagger.io/support
-// @contact.email support@swagger.io
-
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @host localhost:10019
-// @BasePath /api/v1
-
-// @securityDefinitions.apikey ApiKeyAuth
-// @in header
-// @name Authorization
-
 package main
 
 import (
@@ -37,8 +18,6 @@ import (
 	"demo-api-bridge/pkg/config"
 	"demo-api-bridge/pkg/logger"
 	"demo-api-bridge/pkg/metrics"
-
-	_ "demo-api-bridge/api-docs" // api-docs 폴더를 import하여 Swagger 문서를 로드합니다.
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -313,8 +292,12 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 
 // setupRoutes는 라우트를 설정합니다.
 func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
-	// Swagger UI
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger YAML 파일 제공
+	router.Static("/swagger-yaml", "./api-docs")
+
+	// Swagger UI - swagger.yaml 파일 기반 (절대 URL 사용)
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
+		ginSwagger.URL("http://localhost:10019/swagger-yaml/swagger.yaml")))
 
 	// Health Check
 	router.GET("/health", handler.HealthCheck)

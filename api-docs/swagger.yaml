@@ -1,771 +1,1358 @@
-basePath: /api/v1
-definitions:
-  http.CreateEndpointRequest:
-    properties:
-      base_url:
-        type: string
-      description:
-        type: string
-      health_url:
-        type: string
-      is_active:
-        type: boolean
-      method:
-        type: string
-      name:
-        type: string
-      path:
-        type: string
-      priority:
-        type: integer
-      retry_count:
-        type: integer
-      timeout:
-        description: milliseconds
-        type: integer
-    required:
-    - base_url
-    - method
-    - name
-    type: object
-  http.EndpointResponse:
-    properties:
-      base_url:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      health_url:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      retry_count:
-        type: integer
-      timeout:
-        description: milliseconds
-        type: integer
-      updated_at:
-        type: string
-    type: object
-host: localhost:10019
+swagger: "2.0"
 info:
+  title: API Bridge Service
+  version: 1.0.0
+  description: |
+    API Bridge Service for Legacy and Modern System Integration
+    
+    이 서비스는 레거시 시스템과 모던 시스템 간의 API 브리지를 제공합니다.
+    - API 라우팅 및 전환
+    - 병렬 호출 및 응답 비교
+    - 점진적 마이그레이션 지원
+  termsOfService: http://swagger.io/terms/
   contact:
-    email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: API Bridge Service for Legacy and Modern System Integration
+    email: support@swagger.io
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swagger.io/terms/
-  title: API Bridge Service
-  version: "1.0"
-paths:
-  /api/v1/bridge/{path}:
-    delete:
-      consumes:
-      - application/json
-      description: Process API bridge request using any HTTP method
-      parameters:
-      - description: API path to bridge
-        in: path
-        name: path
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Request processed successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Process Bridge Request
-      tags:
-      - Bridge
-    get:
-      consumes:
-      - application/json
-      description: Process API bridge request using any HTTP method
-      parameters:
-      - description: API path to bridge
-        in: path
-        name: path
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Request processed successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Process Bridge Request
-      tags:
-      - Bridge
-    post:
-      consumes:
-      - application/json
-      description: Process API bridge request using any HTTP method
-      parameters:
-      - description: API path to bridge
-        in: path
-        name: path
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Request processed successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Process Bridge Request
-      tags:
-      - Bridge
-    put:
-      consumes:
-      - application/json
-      description: Process API bridge request using any HTTP method
-      parameters:
-      - description: API path to bridge
-        in: path
-        name: path
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Request processed successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Process Bridge Request
-      tags:
-      - Bridge
-  /api/v1/endpoints:
-    get:
-      description: Retrieve a list of all API endpoints
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of endpoints
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Get all API endpoints
-      tags:
-      - endpoints
-    post:
-      consumes:
-      - application/json
-      description: Create a new API endpoint with the provided information
-      parameters:
-      - description: Endpoint information
-        in: body
-        name: endpoint
-        required: true
-        schema:
-          $ref: '#/definitions/http.CreateEndpointRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Endpoint created successfully
-          schema:
-            $ref: '#/definitions/http.EndpointResponse'
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Create a new API endpoint
-      tags:
-      - endpoints
-  /api/v1/endpoints/{id}:
-    delete:
-      description: Delete an API endpoint by its ID
-      parameters:
-      - description: Endpoint ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Endpoint deleted successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Endpoint not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Delete API endpoint
-      tags:
-      - endpoints
-    get:
-      description: Retrieve a specific API endpoint by its ID
-      parameters:
-      - description: Endpoint ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Endpoint retrieved successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Endpoint not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Get API endpoint by ID
-      tags:
-      - endpoints
-    put:
-      consumes:
-      - application/json
-      description: Update an existing API endpoint
-      parameters:
-      - description: Endpoint ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Endpoint information
-        in: body
-        name: endpoint
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Endpoint updated successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Endpoint not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Update API endpoint
-      tags:
-      - endpoints
-  /api/v1/orchestration-rules:
-    post:
-      consumes:
-      - application/json
-      description: Create a new orchestration rule with the provided information
-      parameters:
-      - description: Orchestration rule information
-        in: body
-        name: orchestrationRule
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Orchestration rule created successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Create a new orchestration rule
-      tags:
-      - orchestration-rules
-  /api/v1/orchestration-rules/{id}:
-    get:
-      description: Retrieve a specific orchestration rule by its ID
-      parameters:
-      - description: Orchestration rule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Orchestration rule retrieved successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Orchestration rule not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Get orchestration rule by ID
-      tags:
-      - orchestration-rules
-    put:
-      consumes:
-      - application/json
-      description: Update an existing orchestration rule
-      parameters:
-      - description: Orchestration rule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Orchestration rule information
-        in: body
-        name: orchestrationRule
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Orchestration rule updated successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Orchestration rule not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Update orchestration rule
-      tags:
-      - orchestration-rules
-  /api/v1/orchestration-rules/{id}/evaluate-transition:
-    get:
-      description: Evaluate if a transition should be made for the orchestration rule
-      parameters:
-      - description: Orchestration rule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Transition evaluation completed
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Orchestration rule not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Evaluate transition
-      tags:
-      - orchestration-rules
-  /api/v1/orchestration-rules/{id}/execute-transition:
-    post:
-      consumes:
-      - application/json
-      description: Execute a transition to a new mode for the orchestration rule
-      parameters:
-      - description: Orchestration rule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Transition information
-        in: body
-        name: transition
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Transition executed successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Orchestration rule not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Execute transition
-      tags:
-      - orchestration-rules
-  /api/v1/routing-rules:
-    get:
-      description: Retrieve a list of all routing rules
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of routing rules retrieved successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Get all routing rules
-      tags:
-      - routing-rules
-    post:
-      consumes:
-      - application/json
-      description: Create a new routing rule with the provided information
-      parameters:
-      - description: Routing rule information
-        in: body
-        name: routingRule
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Routing rule created successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Create a new routing rule
-      tags:
-      - routing-rules
-  /api/v1/routing-rules/{id}:
-    delete:
-      description: Delete a routing rule by its ID
-      parameters:
-      - description: Routing rule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Routing rule deleted successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Routing rule not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Delete routing rule
-      tags:
-      - routing-rules
-    get:
-      description: Retrieve a specific routing rule by its ID
-      parameters:
-      - description: Routing rule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Routing rule retrieved successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Routing rule not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Get routing rule by ID
-      tags:
-      - routing-rules
-    put:
-      consumes:
-      - application/json
-      description: Update an existing routing rule
-      parameters:
-      - description: Routing rule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Routing rule information
-        in: body
-        name: routingRule
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Routing rule updated successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Routing rule not found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Update routing rule
-      tags:
-      - routing-rules
-  /api/v1/shutdown:
-    post:
-      consumes:
-      - application/json
-      description: Gracefully shutdown the API Bridge service
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Shutdown initiated successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Graceful shutdown
-      tags:
-      - system
-  /api/v1/status:
-    get:
-      description: Get detailed service status information
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Service status retrieved successfully
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Service Status
-      tags:
-      - Health
-  /health:
-    get:
-      description: Check if the service is healthy
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Service is healthy
-          schema:
-            additionalProperties: true
-            type: object
-        "503":
-          description: Service is unhealthy
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Health Check
-      tags:
-      - Health
-  /metrics:
-    get:
-      description: Get Prometheus metrics for monitoring
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: Metrics retrieved successfully
-          schema:
-            type: string
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Prometheus Metrics
-      tags:
-      - metrics
-  /ready:
-    get:
-      description: Check if the service is ready to accept requests
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Service is ready
-          schema:
-            additionalProperties: true
-            type: object
-        "503":
-          description: Service is not ready
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Readiness Check
-      tags:
-      - Health
+
+host: localhost:10019
+basePath: /
+schemes:
+  - http
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+
 securityDefinitions:
   ApiKeyAuth:
+    type: apiKey
     in: header
     name: Authorization
-    type: apiKey
-swagger: "2.0"
+
+tags:
+  - name: Health
+    description: 헬스체크 및 서비스 상태
+  - name: Bridge
+    description: API 브리지 요청 처리
+  - name: Endpoints
+    description: API 엔드포인트 관리
+  - name: Routing Rules
+    description: 라우팅 규칙 관리
+  - name: Orchestration Rules
+    description: 오케스트레이션 규칙 관리
+  - name: System
+    description: 시스템 관리
+  - name: Metrics
+    description: 모니터링 메트릭
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health Check
+      description: 서비스의 헬스 상태를 확인합니다
+      operationId: healthCheck
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 서비스가 정상입니다
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: healthy
+              timestamp:
+                type: string
+                format: date-time
+                example: "2024-01-01T00:00:00Z"
+        "503":
+          description: 서비스가 비정상입니다
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: unhealthy
+              timestamp:
+                type: string
+                format: date-time
+              error:
+                type: string
+                example: database connection failed
+
+  /ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness Check
+      description: 서비스가 요청을 받을 준비가 되었는지 확인합니다
+      operationId: readinessCheck
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 서비스가 준비되었습니다
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: ready
+              ready:
+                type: boolean
+                example: true
+        "503":
+          description: 서비스가 준비되지 않았습니다
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: not ready
+              ready:
+                type: boolean
+                example: false
+              error:
+                type: string
+
+  /api/v1/status:
+    get:
+      tags:
+        - Health
+      summary: Service Status
+      description: 서비스의 상세 상태 정보를 반환합니다
+      operationId: getStatus
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 상태 정보 조회 성공
+          schema:
+            $ref: "#/definitions/StatusResponse"
+
+  /api/v1/bridge/{path}:
+    get:
+      tags:
+        - Bridge
+      summary: Process Bridge Request (GET)
+      description: API 브리지를 통해 GET 요청을 처리합니다
+      operationId: processBridgeRequestGet
+      parameters:
+        - name: path
+          in: path
+          description: 브리지할 API 경로
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 요청이 성공적으로 처리되었습니다
+          schema:
+            type: object
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    post:
+      tags:
+        - Bridge
+      summary: Process Bridge Request (POST)
+      description: API 브리지를 통해 POST 요청을 처리합니다
+      operationId: processBridgeRequestPost
+      parameters:
+        - name: path
+          in: path
+          description: 브리지할 API 경로
+          required: true
+          type: string
+        - name: body
+          in: body
+          description: 요청 본문
+          required: false
+          schema:
+            type: object
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 요청이 성공적으로 처리되었습니다
+          schema:
+            type: object
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    put:
+      tags:
+        - Bridge
+      summary: Process Bridge Request (PUT)
+      description: API 브리지를 통해 PUT 요청을 처리합니다
+      operationId: processBridgeRequestPut
+      parameters:
+        - name: path
+          in: path
+          description: 브리지할 API 경로
+          required: true
+          type: string
+        - name: body
+          in: body
+          description: 요청 본문
+          required: false
+          schema:
+            type: object
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 요청이 성공적으로 처리되었습니다
+          schema:
+            type: object
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    delete:
+      tags:
+        - Bridge
+      summary: Process Bridge Request (DELETE)
+      description: API 브리지를 통해 DELETE 요청을 처리합니다
+      operationId: processBridgeRequestDelete
+      parameters:
+        - name: path
+          in: path
+          description: 브리지할 API 경로
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 요청이 성공적으로 처리되었습니다
+          schema:
+            type: object
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/endpoints:
+    get:
+      tags:
+        - Endpoints
+      summary: List Endpoints
+      description: 모든 API 엔드포인트 목록을 조회합니다
+      operationId: listEndpoints
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 엔드포인트 목록 조회 성공
+          schema:
+            type: object
+            properties:
+              endpoints:
+                type: array
+                items:
+                  $ref: "#/definitions/EndpointResponse"
+              count:
+                type: integer
+                example: 10
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    post:
+      tags:
+        - Endpoints
+      summary: Create Endpoint
+      description: 새로운 API 엔드포인트를 생성합니다
+      operationId: createEndpoint
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: endpoint
+          in: body
+          description: 엔드포인트 정보
+          required: true
+          schema:
+            $ref: "#/definitions/CreateEndpointRequest"
+      responses:
+        "201":
+          description: 엔드포인트 생성 성공
+          schema:
+            $ref: "#/definitions/EndpointResponse"
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/endpoints/{id}:
+    get:
+      tags:
+        - Endpoints
+      summary: Get Endpoint
+      description: 특정 API 엔드포인트를 조회합니다
+      operationId: getEndpoint
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 엔드포인트 ID
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 엔드포인트 조회 성공
+          schema:
+            $ref: "#/definitions/EndpointResponse"
+        "404":
+          description: 엔드포인트를 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    put:
+      tags:
+        - Endpoints
+      summary: Update Endpoint
+      description: 기존 API 엔드포인트를 수정합니다
+      operationId: updateEndpoint
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 엔드포인트 ID
+          required: true
+          type: string
+        - name: endpoint
+          in: body
+          description: 수정할 엔드포인트 정보
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateEndpointRequest"
+      responses:
+        "200":
+          description: 엔드포인트 수정 성공
+          schema:
+            $ref: "#/definitions/EndpointResponse"
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: 엔드포인트를 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    delete:
+      tags:
+        - Endpoints
+      summary: Delete Endpoint
+      description: API 엔드포인트를 삭제합니다
+      operationId: deleteEndpoint
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 엔드포인트 ID
+          required: true
+          type: string
+      responses:
+        "204":
+          description: 엔드포인트 삭제 성공
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/routing-rules:
+    get:
+      tags:
+        - Routing Rules
+      summary: List Routing Rules
+      description: 모든 라우팅 규칙 목록을 조회합니다
+      operationId: listRoutingRules
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 라우팅 규칙 목록 조회 성공
+          schema:
+            type: object
+            properties:
+              routing_rules:
+                type: array
+                items:
+                  $ref: "#/definitions/RoutingRuleResponse"
+              count:
+                type: integer
+                example: 5
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    post:
+      tags:
+        - Routing Rules
+      summary: Create Routing Rule
+      description: 새로운 라우팅 규칙을 생성합니다
+      operationId: createRoutingRule
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: routingRule
+          in: body
+          description: 라우팅 규칙 정보
+          required: true
+          schema:
+            $ref: "#/definitions/CreateRoutingRuleRequest"
+      responses:
+        "201":
+          description: 라우팅 규칙 생성 성공
+          schema:
+            $ref: "#/definitions/RoutingRuleResponse"
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/routing-rules/{id}:
+    get:
+      tags:
+        - Routing Rules
+      summary: Get Routing Rule
+      description: 특정 라우팅 규칙을 조회합니다
+      operationId: getRoutingRule
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 라우팅 규칙 ID
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 라우팅 규칙 조회 성공
+          schema:
+            $ref: "#/definitions/RoutingRuleResponse"
+        "404":
+          description: 라우팅 규칙을 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    put:
+      tags:
+        - Routing Rules
+      summary: Update Routing Rule
+      description: 기존 라우팅 규칙을 수정합니다
+      operationId: updateRoutingRule
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 라우팅 규칙 ID
+          required: true
+          type: string
+        - name: routingRule
+          in: body
+          description: 수정할 라우팅 규칙 정보
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateRoutingRuleRequest"
+      responses:
+        "200":
+          description: 라우팅 규칙 수정 성공
+          schema:
+            $ref: "#/definitions/RoutingRuleResponse"
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: 라우팅 규칙을 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    delete:
+      tags:
+        - Routing Rules
+      summary: Delete Routing Rule
+      description: 라우팅 규칙을 삭제합니다
+      operationId: deleteRoutingRule
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 라우팅 규칙 ID
+          required: true
+          type: string
+      responses:
+        "204":
+          description: 라우팅 규칙 삭제 성공
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/orchestration-rules:
+    post:
+      tags:
+        - Orchestration Rules
+      summary: Create Orchestration Rule
+      description: 새로운 오케스트레이션 규칙을 생성합니다
+      operationId: createOrchestrationRule
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: orchestrationRule
+          in: body
+          description: 오케스트레이션 규칙 정보
+          required: true
+          schema:
+            $ref: "#/definitions/CreateOrchestrationRuleRequest"
+      responses:
+        "201":
+          description: 오케스트레이션 규칙 생성 성공
+          schema:
+            $ref: "#/definitions/OrchestrationRuleResponse"
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/orchestration-rules/{id}:
+    get:
+      tags:
+        - Orchestration Rules
+      summary: Get Orchestration Rule
+      description: 특정 오케스트레이션 규칙을 조회합니다
+      operationId: getOrchestrationRule
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 오케스트레이션 규칙 ID
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 오케스트레이션 규칙 조회 성공
+          schema:
+            $ref: "#/definitions/OrchestrationRuleResponse"
+        "404":
+          description: 오케스트레이션 규칙을 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    
+    put:
+      tags:
+        - Orchestration Rules
+      summary: Update Orchestration Rule
+      description: 기존 오케스트레이션 규칙을 수정합니다
+      operationId: updateOrchestrationRule
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 오케스트레이션 규칙 ID
+          required: true
+          type: string
+        - name: orchestrationRule
+          in: body
+          description: 수정할 오케스트레이션 규칙 정보
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateOrchestrationRuleRequest"
+      responses:
+        "200":
+          description: 오케스트레이션 규칙 수정 성공
+          schema:
+            $ref: "#/definitions/OrchestrationRuleResponse"
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: 오케스트레이션 규칙을 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/orchestration-rules/{id}/evaluate-transition:
+    get:
+      tags:
+        - Orchestration Rules
+      summary: Evaluate Transition
+      description: 오케스트레이션 규칙의 전환 가능 여부를 평가합니다
+      operationId: evaluateTransition
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 오케스트레이션 규칙 ID
+          required: true
+          type: string
+      responses:
+        "200":
+          description: 전환 평가 완료
+          schema:
+            type: object
+            properties:
+              can_transition:
+                type: boolean
+                example: true
+                description: 전환 가능 여부
+              current_mode:
+                type: string
+                example: PARALLEL
+                description: 현재 모드
+              rule_id:
+                type: string
+                example: orch-20240101120000-abc123
+                description: 규칙 ID
+        "404":
+          description: 오케스트레이션 규칙을 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/orchestration-rules/{id}/execute-transition:
+    post:
+      tags:
+        - Orchestration Rules
+      summary: Execute Transition
+      description: 오케스트레이션 규칙의 API 모드를 전환합니다
+      operationId: executeTransition
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: 오케스트레이션 규칙 ID
+          required: true
+          type: string
+        - name: transition
+          in: body
+          description: 전환 정보
+          required: true
+          schema:
+            type: object
+            required:
+              - new_mode
+            properties:
+              new_mode:
+                type: string
+                enum:
+                  - LEGACY_ONLY
+                  - MODERN_ONLY
+                  - PARALLEL
+                example: MODERN_ONLY
+                description: 전환할 새로운 모드
+      responses:
+        "200":
+          description: 전환 실행 성공
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: transition executed successfully
+              from_mode:
+                type: string
+                example: PARALLEL
+              to_mode:
+                type: string
+                example: MODERN_ONLY
+              rule_id:
+                type: string
+                example: orch-20240101120000-abc123
+        "400":
+          description: 잘못된 요청
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: 오케스트레이션 규칙을 찾을 수 없음
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /api/v1/shutdown:
+    post:
+      tags:
+        - System
+      summary: Graceful Shutdown
+      description: API Bridge 서비스를 안전하게 종료합니다
+      operationId: gracefulShutdown
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 종료 시작됨
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Graceful shutdown initiated
+              timestamp:
+                type: string
+                format: date-time
+                example: "2024-01-01T00:00:00Z"
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Prometheus Metrics
+      description: 모니터링을 위한 Prometheus 메트릭을 반환합니다
+      operationId: getMetrics
+      produces:
+        - text/plain
+      responses:
+        "200":
+          description: 메트릭 조회 성공
+          schema:
+            type: string
+            example: |
+              # HELP api_bridge_requests_total Total number of API bridge requests
+              # TYPE api_bridge_requests_total counter
+              api_bridge_requests_total{method="GET",status="200"} 1234
+        "500":
+          description: 내부 서버 오류
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+definitions:
+  CreateEndpointRequest:
+    type: object
+    required:
+      - name
+      - base_url
+      - method
+    properties:
+      name:
+        type: string
+        description: 엔드포인트 이름
+        example: Legacy User API
+      description:
+        type: string
+        description: 엔드포인트 설명
+        example: Legacy system user management API
+      base_url:
+        type: string
+        description: 기본 URL
+        example: https://legacy-api.example.com
+      path:
+        type: string
+        description: API 경로
+        example: /api/users
+      health_url:
+        type: string
+        description: 헬스체크 URL
+        example: https://legacy-api.example.com/health
+      method:
+        type: string
+        description: HTTP 메서드
+        example: GET
+        enum:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+      is_active:
+        type: boolean
+        description: 활성화 여부
+        example: true
+      timeout:
+        type: integer
+        description: 타임아웃 (밀리초)
+        example: 30000
+      retry_count:
+        type: integer
+        description: 재시도 횟수
+        example: 3
+      priority:
+        type: integer
+        description: 우선순위
+        example: 1
+
+  UpdateEndpointRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        description: 엔드포인트 이름
+      description:
+        type: string
+        description: 엔드포인트 설명
+      base_url:
+        type: string
+        description: 기본 URL
+      health_url:
+        type: string
+        description: 헬스체크 URL
+      is_active:
+        type: boolean
+        description: 활성화 여부
+      timeout:
+        type: integer
+        description: 타임아웃 (밀리초)
+      retry_count:
+        type: integer
+        description: 재시도 횟수
+
+  EndpointResponse:
+    type: object
+    properties:
+      id:
+        type: string
+        description: 엔드포인트 ID
+        example: endpoint-20240101120000-abc123
+      name:
+        type: string
+        description: 엔드포인트 이름
+        example: Legacy User API
+      description:
+        type: string
+        description: 엔드포인트 설명
+      base_url:
+        type: string
+        description: 기본 URL
+        example: https://legacy-api.example.com
+      health_url:
+        type: string
+        description: 헬스체크 URL
+      is_active:
+        type: boolean
+        description: 활성화 여부
+        example: true
+      timeout:
+        type: integer
+        description: 타임아웃 (밀리초)
+        example: 30000
+      retry_count:
+        type: integer
+        description: 재시도 횟수
+        example: 3
+      created_at:
+        type: string
+        format: date-time
+        description: 생성 시간
+      updated_at:
+        type: string
+        format: date-time
+        description: 수정 시간
+
+  CreateRoutingRuleRequest:
+    type: object
+    required:
+      - name
+      - path_pattern
+      - method
+    properties:
+      name:
+        type: string
+        description: 라우팅 규칙 이름
+        example: User API Routing
+      description:
+        type: string
+        description: 라우팅 규칙 설명
+      path_pattern:
+        type: string
+        description: 경로 패턴
+        example: /api/v1/users/*
+      method:
+        type: string
+        description: HTTP 메서드
+        example: GET
+      priority:
+        type: integer
+        description: 우선순위 (낮을수록 먼저 매칭)
+        example: 100
+      is_active:
+        type: boolean
+        description: 활성화 여부
+        example: true
+      legacy_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      modern_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      headers:
+        type: object
+        description: 매칭할 헤더
+        additionalProperties:
+          type: string
+        example:
+          Content-Type: application/json
+      query_params:
+        type: object
+        description: 매칭할 쿼리 파라미터
+        additionalProperties:
+          type: string
+        example:
+          version: v1
+
+  UpdateRoutingRuleRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        description: 라우팅 규칙 이름
+      description:
+        type: string
+        description: 라우팅 규칙 설명
+      path_pattern:
+        type: string
+        description: 경로 패턴
+      method:
+        type: string
+        description: HTTP 메서드
+      priority:
+        type: integer
+        description: 우선순위
+      is_active:
+        type: boolean
+        description: 활성화 여부
+      legacy_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      modern_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      headers:
+        type: object
+        description: 매칭할 헤더
+        additionalProperties:
+          type: string
+      query_params:
+        type: object
+        description: 매칭할 쿼리 파라미터
+        additionalProperties:
+          type: string
+
+  RoutingRuleResponse:
+    type: object
+    properties:
+      id:
+        type: string
+        description: 라우팅 규칙 ID
+        example: rule-20240101120000-abc123
+      name:
+        type: string
+        description: 라우팅 규칙 이름
+      description:
+        type: string
+        description: 라우팅 규칙 설명
+      path_pattern:
+        type: string
+        description: 경로 패턴
+        example: /api/v1/users/*
+      method:
+        type: string
+        description: HTTP 메서드
+        example: GET
+      priority:
+        type: integer
+        description: 우선순위
+        example: 100
+      is_active:
+        type: boolean
+        description: 활성화 여부
+        example: true
+      legacy_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      modern_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      headers:
+        type: object
+        description: 매칭할 헤더
+        additionalProperties:
+          type: string
+      query_params:
+        type: object
+        description: 매칭할 쿼리 파라미터
+        additionalProperties:
+          type: string
+      created_at:
+        type: string
+        format: date-time
+        description: 생성 시간
+      updated_at:
+        type: string
+        format: date-time
+        description: 수정 시간
+
+  CreateOrchestrationRuleRequest:
+    type: object
+    required:
+      - name
+      - routing_rule_id
+      - legacy_endpoint
+      - modern_endpoint
+    properties:
+      name:
+        type: string
+        description: 오케스트레이션 규칙 이름
+        example: User API Migration
+      description:
+        type: string
+        description: 오케스트레이션 규칙 설명
+      routing_rule_id:
+        type: string
+        description: 연결된 라우팅 규칙 ID
+        example: rule-20240101120000-abc123
+      legacy_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      modern_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      current_mode:
+        type: string
+        description: 현재 API 모드
+        enum:
+          - LEGACY_ONLY
+          - MODERN_ONLY
+          - PARALLEL
+        example: PARALLEL
+      transition_config:
+        $ref: "#/definitions/TransitionConfigRequest"
+      comparison_config:
+        $ref: "#/definitions/ComparisonConfigRequest"
+      is_active:
+        type: boolean
+        description: 활성화 여부
+        example: true
+
+  UpdateOrchestrationRuleRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        description: 오케스트레이션 규칙 이름
+      description:
+        type: string
+        description: 오케스트레이션 규칙 설명
+      current_mode:
+        type: string
+        description: 현재 API 모드
+        enum:
+          - LEGACY_ONLY
+          - MODERN_ONLY
+          - PARALLEL
+      transition_config:
+        $ref: "#/definitions/TransitionConfigRequest"
+      comparison_config:
+        $ref: "#/definitions/ComparisonConfigRequest"
+      is_active:
+        type: boolean
+        description: 활성화 여부
+
+  OrchestrationRuleResponse:
+    type: object
+    properties:
+      id:
+        type: string
+        description: 오케스트레이션 규칙 ID
+        example: orch-20240101120000-abc123
+      name:
+        type: string
+        description: 오케스트레이션 규칙 이름
+      description:
+        type: string
+        description: 오케스트레이션 규칙 설명
+      routing_rule_id:
+        type: string
+        description: 연결된 라우팅 규칙 ID
+      legacy_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      modern_endpoint:
+        $ref: "#/definitions/EndpointReference"
+      current_mode:
+        type: string
+        description: 현재 API 모드
+        enum:
+          - LEGACY_ONLY
+          - MODERN_ONLY
+          - PARALLEL
+        example: PARALLEL
+      transition_config:
+        $ref: "#/definitions/TransitionConfigResponse"
+      comparison_config:
+        $ref: "#/definitions/ComparisonConfigResponse"
+      is_active:
+        type: boolean
+        description: 활성화 여부
+        example: true
+      created_at:
+        type: string
+        format: date-time
+        description: 생성 시간
+      updated_at:
+        type: string
+        format: date-time
+        description: 수정 시간
+
+  TransitionConfigRequest:
+    type: object
+    properties:
+      auto_transition_enabled:
+        type: boolean
+        description: 자동 전환 활성화
+        example: true
+      match_rate_threshold:
+        type: number
+        format: float
+        description: 전환 임계값 (0.0 ~ 1.0)
+        example: 0.95
+      stability_period_hours:
+        type: integer
+        description: 안정성 확인 기간 (시간)
+        example: 24
+      min_requests_for_transition:
+        type: integer
+        description: 전환을 위한 최소 요청 수
+        example: 100
+      rollback_threshold:
+        type: number
+        format: float
+        description: 롤백 임계값 (0.0 ~ 1.0)
+        example: 0.90
+
+  TransitionConfigResponse:
+    type: object
+    properties:
+      auto_transition_enabled:
+        type: boolean
+        description: 자동 전환 활성화
+        example: true
+      match_rate_threshold:
+        type: number
+        format: float
+        description: 전환 임계값 (0.0 ~ 1.0)
+        example: 0.95
+      stability_period_hours:
+        type: integer
+        description: 안정성 확인 기간 (시간)
+        example: 24
+      min_requests_for_transition:
+        type: integer
+        description: 전환을 위한 최소 요청 수
+        example: 100
+      rollback_threshold:
+        type: number
+        format: float
+        description: 롤백 임계값 (0.0 ~ 1.0)
+        example: 0.90
+
+  ComparisonConfigRequest:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        description: 비교 활성화
+        example: true
+      ignore_fields:
+        type: array
+        description: 무시할 필드 목록
+        items:
+          type: string
+        example:
+          - timestamp
+          - requestId
+      allowable_difference:
+        type: number
+        format: float
+        description: 허용 가능한 차이 (숫자 필드용)
+        example: 0.01
+      strict_mode:
+        type: boolean
+        description: 엄격 모드 (모든 차이점을 에러로 처리)
+        example: false
+      save_comparison_history:
+        type: boolean
+        description: 비교 이력 저장 여부
+        example: true
+
+  ComparisonConfigResponse:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        description: 비교 활성화
+        example: true
+      ignore_fields:
+        type: array
+        description: 무시할 필드 목록
+        items:
+          type: string
+        example:
+          - timestamp
+          - requestId
+      allowable_difference:
+        type: number
+        format: float
+        description: 허용 가능한 차이
+        example: 0.01
+      strict_mode:
+        type: boolean
+        description: 엄격 모드
+        example: false
+      save_comparison_history:
+        type: boolean
+        description: 비교 이력 저장 여부
+        example: true
+
+  EndpointReference:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+        description: 엔드포인트 ID
+        example: endpoint-20240101120000-abc123
+      name:
+        type: string
+        description: 엔드포인트 이름
+        example: Legacy User API
+
+  StatusResponse:
+    type: object
+    properties:
+      service:
+        type: string
+        description: 서비스 이름
+        example: api-bridge
+      version:
+        type: string
+        description: 버전
+        example: 1.0.0
+      timestamp:
+        type: string
+        format: date-time
+        description: 타임스탬프
+      uptime:
+        type: string
+        description: 가동 시간
+        example: 1h30m45s
+      environment:
+        type: string
+        description: 실행 환경
+        example: production
+      metrics:
+        type: object
+        description: 메트릭 정보
+        additionalProperties: true
+
+  ErrorResponse:
+    type: object
+    properties:
+      error:
+        type: string
+        description: 에러 메시지
+        example: endpoint not found
+      details:
+        type: string
+        description: 상세 에러 내용
+        example: no endpoint found with ID endpoint-123

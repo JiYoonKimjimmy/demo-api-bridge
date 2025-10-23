@@ -30,7 +30,7 @@ demo-api-bridge/
 │   └── metrics/             # 모니터링 메트릭
 ├── config/                  # 설정 파일
 ├── docs/                    # 프로젝트 문서
-├── api-docs/                # Swagger/OpenAPI 자동 생성 문서
+├── api-docs/                # Swagger/OpenAPI 문서
 ├── scripts/                 # 유틸리티 스크립트
 └── test/                    # 통합 테스트
 ```
@@ -282,70 +282,37 @@ Prometheus 메트릭은 `/metrics` 엔드포인트에서 확인할 수 있습니
 
 ## 📚 API 문서화
 
-### Swagger/OpenAPI 자동 문서화
+### Swagger/OpenAPI 문서 관리
 
-이 프로젝트는 `swag` 도구를 사용하여 자동으로 API 문서를 생성합니다.
+API 문서는 수동으로 관리됩니다.
 
 #### 📁 문서 구조
 - **`docs/`**: 프로젝트 관련 문서 (설계서, 가이드 등)
-- **`api-docs/`**: Swagger 자동 생성 문서
-  - `docs.go`: Go 패키지로 생성된 문서
-  - `swagger.json`: JSON 형식 API 스펙
-  - `swagger.yaml`: YAML 형식 API 스펙
+- **`api-docs/`**: Swagger 문서
+  - `swagger.yaml`: YAML 형식 API 스펙 (수동 관리)
+  - `docs/SWAGGER_SETUP.md`: Swagger 설정 가이드
 
-#### 🔧 문서 생성 및 업데이트
+#### 📝 API 문서 수정 방법
 
-##### 자동 생성 (권장)
-```powershell
-# PowerShell (Windows)
-.\scripts\generate-docs.ps1
-
-# Bash (Linux/macOS)
-./scripts/generate-docs.sh
-```
-
-##### 수동 생성
-```bash
-# Swagger 문서 생성
-swag init -g cmd/api-bridge/main.go -o api-docs
-```
+1. **swagger.yaml 파일 수정**: `api-docs/swagger.yaml` 파일에서 API 스펙을 직접 수정
+2. **서비스 재시작**: 변경사항을 반영하기 위해 서비스를 재시작
+3. **Swagger UI 확인**: `http://localhost:10019/swagger/index.html`에서 변경사항 확인
 
 
 #### 🌐 Swagger UI 접속
 서버 실행 후 다음 URL에서 API 문서를 확인하고 테스트할 수 있습니다:
 - **Swagger UI**: `http://localhost:10019/swagger/index.html`
-- **YAML API**: `http://localhost:10019/api-docs/swagger.yaml`
+- **YAML API**: `http://localhost:10019/swagger-yaml/swagger.yaml`
 
-#### 💡 API 문서 수정 워크플로우
+#### 💡 API 문서 관리 워크플로우
 
-##### 자동 문서 생성 (권장)
-애플리케이션 시작 시 자동으로 최신 API 문서를 생성합니다:
+API 문서는 Git으로 버전 관리되는 소스 파일입니다:
 
-```powershell
-# PowerShell (Windows) - 자동으로 API 문서 생성 후 애플리케이션 시작
-.\start.ps1
+1. **swagger.yaml 직접 수정**: 코드와 독립적으로 API 문서 관리
+2. **서비스 재시작**: 변경사항 반영을 위해 서비스 재시작
+3. **Swagger UI에서 확인**: 브라우저에서 최신 API 문서 확인
 
-# Bash (Linux/macOS) - 자동으로 API 문서 생성 후 애플리케이션 시작
-./start.sh
-```
-
-##### 수동 문서 생성
-API 문서만 별도로 생성하고 싶은 경우:
-
-```powershell
-# PowerShell (Windows)
-.\scripts\generate-docs.ps1
-
-# Bash (Linux/macOS)
-./scripts/generate-docs.sh
-```
-
-##### 개발 워크플로우
-1. **swagger.yaml 파일 수정**: `api-docs/swagger.yaml` 파일에서 API 스펙을 수정
-2. **애플리케이션 재시작**: `.\start.ps1` 또는 `./start.sh` 실행 시 자동으로 최신 문서 생성
-3. **즉시 반영**: 서버 시작과 동시에 최신 API 문서가 Swagger UI에 반영됨
-
-> 💡 **팁**: `start.ps1`/`start.sh` 스크립트를 사용하면 애플리케이션 시작 시 자동으로 최신 API 문서가 생성됩니다!
+> 💡 **팁**: `start.ps1`/`start.sh` 스크립트를 사용하면 애플리케이션을 쉽게 시작할 수 있습니다!
 
 ## 🧪 테스트
 

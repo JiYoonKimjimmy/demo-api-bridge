@@ -1,23 +1,5 @@
 package http
 
-// @title API Bridge Service
-// @version 1.0
-// @description API Bridge Service for Legacy and Modern System Integration
-// @termsOfService http://swagger.io/terms/
-// @contact.name API Support
-// @contact.url http://www.swagger.io/support
-// @contact.email support@swagger.io
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-// @host localhost:10019
-// @BasePath /api/v1
-// @schemes http https
-// @produce json
-// @consume json
-// @securityDefinitions.apikey ApiKeyAuth
-// @in header
-// @name Authorization
-
 import (
 	"crypto/rand"
 	"demo-api-bridge/internal/core/domain"
@@ -68,13 +50,6 @@ func NewHandler(
 }
 
 // HealthCheck는 서비스의 헬스체크를 처리합니다.
-// @Summary Health Check
-// @Description Check if the service is healthy
-// @Tags Health
-// @Produce json
-// @Success 200 {object} map[string]interface{} "Service is healthy"
-// @Failure 503 {object} map[string]interface{} "Service is unhealthy"
-// @Router /health [get]
 func (h *Handler) HealthCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -96,13 +71,6 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 }
 
 // ReadinessCheck는 서비스의 준비 상태를 확인합니다.
-// @Summary Readiness Check
-// @Description Check if the service is ready to accept requests
-// @Tags Health
-// @Produce json
-// @Success 200 {object} map[string]interface{} "Service is ready"
-// @Failure 503 {object} map[string]interface{} "Service is not ready"
-// @Router /ready [get]
 func (h *Handler) ReadinessCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -124,12 +92,6 @@ func (h *Handler) ReadinessCheck(c *gin.Context) {
 }
 
 // Status는 상세한 서비스 상태를 반환합니다.
-// @Summary Service Status
-// @Description Get detailed service status information
-// @Tags Health
-// @Produce json
-// @Success 200 {object} map[string]interface{} "Service status retrieved successfully"
-// @Router /api/v1/status [get]
 func (h *Handler) Status(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -138,19 +100,6 @@ func (h *Handler) Status(c *gin.Context) {
 }
 
 // ProcessBridgeRequest는 API Bridge 요청을 처리합니다.
-// @Summary Process Bridge Request
-// @Description Process API bridge request using any HTTP method
-// @Tags Bridge
-// @Accept json
-// @Produce json
-// @Param path path string true "API path to bridge"
-// @Success 200 {object} map[string]interface{} "Request processed successfully"
-// @Failure 400 {object} map[string]interface{} "Bad request"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/bridge/{path} [get]
-// @Router /api/v1/bridge/{path} [post]
-// @Router /api/v1/bridge/{path} [put]
-// @Router /api/v1/bridge/{path} [delete]
 func (h *Handler) ProcessBridgeRequest(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -205,13 +154,6 @@ func (h *Handler) ProcessBridgeRequest(c *gin.Context) {
 }
 
 // Metrics는 Prometheus 메트릭을 반환합니다.
-// @Summary Prometheus Metrics
-// @Description Get Prometheus metrics for monitoring
-// @Tags metrics
-// @Produce text/plain
-// @Success 200 {string} string "Metrics retrieved successfully"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /metrics [get]
 func (h *Handler) Metrics(c *gin.Context) {
 	// TODO: Prometheus 메트릭 엔드포인트 구현
 	c.JSON(http.StatusOK, gin.H{
@@ -237,16 +179,6 @@ func randomString(length int) string {
 // === APIEndpoint CRUD 핸들러 ===
 
 // CreateEndpoint는 새로운 엔드포인트를 생성합니다.
-// @Summary Create a new API endpoint
-// @Description Create a new API endpoint with the provided information
-// @Tags endpoints
-// @Accept json
-// @Produce json
-// @Param endpoint body CreateEndpointRequest true "Endpoint information"
-// @Success 201 {object} EndpointResponse "Endpoint created successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/endpoints [post]
 func (h *Handler) CreateEndpoint(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -274,15 +206,6 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 }
 
 // GetEndpoint는 엔드포인트를 조회합니다.
-// @Summary Get API endpoint by ID
-// @Description Retrieve a specific API endpoint by its ID
-// @Tags endpoints
-// @Produce json
-// @Param id path string true "Endpoint ID"
-// @Success 200 {object} map[string]interface{} "Endpoint retrieved successfully"
-// @Failure 404 {object} map[string]interface{} "Endpoint not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/endpoints/{id} [get]
 func (h *Handler) GetEndpoint(c *gin.Context) {
 	ctx := c.Request.Context()
 	endpointID := c.Param("id")
@@ -299,13 +222,6 @@ func (h *Handler) GetEndpoint(c *gin.Context) {
 }
 
 // ListEndpoints는 모든 엔드포인트를 조회합니다.
-// @Summary Get all API endpoints
-// @Description Retrieve a list of all API endpoints
-// @Tags endpoints
-// @Produce json
-// @Success 200 {object} map[string]interface{} "List of endpoints"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/endpoints [get]
 func (h *Handler) ListEndpoints(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -321,18 +237,6 @@ func (h *Handler) ListEndpoints(c *gin.Context) {
 }
 
 // UpdateEndpoint는 엔드포인트를 수정합니다.
-// @Summary Update API endpoint
-// @Description Update an existing API endpoint
-// @Tags endpoints
-// @Accept json
-// @Produce json
-// @Param id path string true "Endpoint ID"
-// @Param endpoint body object true "Endpoint information"
-// @Success 200 {object} map[string]interface{} "Endpoint updated successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body"
-// @Failure 404 {object} map[string]interface{} "Endpoint not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/endpoints/{id} [put]
 func (h *Handler) UpdateEndpoint(c *gin.Context) {
 	ctx := c.Request.Context()
 	endpointID := c.Param("id")
@@ -368,15 +272,6 @@ func (h *Handler) UpdateEndpoint(c *gin.Context) {
 }
 
 // DeleteEndpoint는 엔드포인트를 삭제합니다.
-// @Summary Delete API endpoint
-// @Description Delete an API endpoint by its ID
-// @Tags endpoints
-// @Produce json
-// @Param id path string true "Endpoint ID"
-// @Success 200 {object} map[string]interface{} "Endpoint deleted successfully"
-// @Failure 404 {object} map[string]interface{} "Endpoint not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/endpoints/{id} [delete]
 func (h *Handler) DeleteEndpoint(c *gin.Context) {
 	ctx := c.Request.Context()
 	endpointID := c.Param("id")
@@ -398,16 +293,6 @@ func generateEndpointID() string {
 // === RoutingRule CRUD 핸들러 ===
 
 // CreateRoutingRule은 새로운 라우팅 규칙을 생성합니다.
-// @Summary Create a new routing rule
-// @Description Create a new routing rule with the provided information
-// @Tags routing-rules
-// @Accept json
-// @Produce json
-// @Param routingRule body object true "Routing rule information"
-// @Success 201 {object} map[string]interface{} "Routing rule created successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/routing-rules [post]
 func (h *Handler) CreateRoutingRule(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -435,15 +320,6 @@ func (h *Handler) CreateRoutingRule(c *gin.Context) {
 }
 
 // GetRoutingRule은 라우팅 규칙을 조회합니다.
-// @Summary Get routing rule by ID
-// @Description Retrieve a specific routing rule by its ID
-// @Tags routing-rules
-// @Produce json
-// @Param id path string true "Routing rule ID"
-// @Success 200 {object} map[string]interface{} "Routing rule retrieved successfully"
-// @Failure 404 {object} map[string]interface{} "Routing rule not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/routing-rules/{id} [get]
 func (h *Handler) GetRoutingRule(c *gin.Context) {
 	ctx := c.Request.Context()
 	ruleID := c.Param("id")
@@ -460,13 +336,6 @@ func (h *Handler) GetRoutingRule(c *gin.Context) {
 }
 
 // ListRoutingRules는 모든 라우팅 규칙을 조회합니다.
-// @Summary Get all routing rules
-// @Description Retrieve a list of all routing rules
-// @Tags routing-rules
-// @Produce json
-// @Success 200 {object} map[string]interface{} "List of routing rules retrieved successfully"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/routing-rules [get]
 func (h *Handler) ListRoutingRules(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -482,18 +351,6 @@ func (h *Handler) ListRoutingRules(c *gin.Context) {
 }
 
 // UpdateRoutingRule은 라우팅 규칙을 수정합니다.
-// @Summary Update routing rule
-// @Description Update an existing routing rule
-// @Tags routing-rules
-// @Accept json
-// @Produce json
-// @Param id path string true "Routing rule ID"
-// @Param routingRule body object true "Routing rule information"
-// @Success 200 {object} map[string]interface{} "Routing rule updated successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body"
-// @Failure 404 {object} map[string]interface{} "Routing rule not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/routing-rules/{id} [put]
 func (h *Handler) UpdateRoutingRule(c *gin.Context) {
 	ctx := c.Request.Context()
 	ruleID := c.Param("id")
@@ -529,15 +386,6 @@ func (h *Handler) UpdateRoutingRule(c *gin.Context) {
 }
 
 // DeleteRoutingRule은 라우팅 규칙을 삭제합니다.
-// @Summary Delete routing rule
-// @Description Delete a routing rule by its ID
-// @Tags routing-rules
-// @Produce json
-// @Param id path string true "Routing rule ID"
-// @Success 200 {object} map[string]interface{} "Routing rule deleted successfully"
-// @Failure 404 {object} map[string]interface{} "Routing rule not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/routing-rules/{id} [delete]
 func (h *Handler) DeleteRoutingRule(c *gin.Context) {
 	ctx := c.Request.Context()
 	ruleID := c.Param("id")
@@ -559,16 +407,6 @@ func generateRoutingRuleID() string {
 // === OrchestrationRule CRUD 핸들러 ===
 
 // CreateOrchestrationRule은 새로운 오케스트레이션 규칙을 생성합니다.
-// @Summary Create a new orchestration rule
-// @Description Create a new orchestration rule with the provided information
-// @Tags orchestration-rules
-// @Accept json
-// @Produce json
-// @Param orchestrationRule body object true "Orchestration rule information"
-// @Success 201 {object} map[string]interface{} "Orchestration rule created successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/orchestration-rules [post]
 func (h *Handler) CreateOrchestrationRule(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -596,15 +434,6 @@ func (h *Handler) CreateOrchestrationRule(c *gin.Context) {
 }
 
 // GetOrchestrationRule은 오케스트레이션 규칙을 조회합니다.
-// @Summary Get orchestration rule by ID
-// @Description Retrieve a specific orchestration rule by its ID
-// @Tags orchestration-rules
-// @Produce json
-// @Param id path string true "Orchestration rule ID"
-// @Success 200 {object} map[string]interface{} "Orchestration rule retrieved successfully"
-// @Failure 404 {object} map[string]interface{} "Orchestration rule not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/orchestration-rules/{id} [get]
 func (h *Handler) GetOrchestrationRule(c *gin.Context) {
 	ctx := c.Request.Context()
 	routingRuleID := c.Param("id")
@@ -621,18 +450,6 @@ func (h *Handler) GetOrchestrationRule(c *gin.Context) {
 }
 
 // UpdateOrchestrationRule은 오케스트레이션 규칙을 수정합니다.
-// @Summary Update orchestration rule
-// @Description Update an existing orchestration rule
-// @Tags orchestration-rules
-// @Accept json
-// @Produce json
-// @Param id path string true "Orchestration rule ID"
-// @Param orchestrationRule body object true "Orchestration rule information"
-// @Success 200 {object} map[string]interface{} "Orchestration rule updated successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body"
-// @Failure 404 {object} map[string]interface{} "Orchestration rule not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/orchestration-rules/{id} [put]
 func (h *Handler) UpdateOrchestrationRule(c *gin.Context) {
 	ctx := c.Request.Context()
 	routingRuleID := c.Param("id")
@@ -668,15 +485,6 @@ func (h *Handler) UpdateOrchestrationRule(c *gin.Context) {
 }
 
 // EvaluateTransition은 전환 가능성을 평가합니다.
-// @Summary Evaluate transition
-// @Description Evaluate if a transition should be made for the orchestration rule
-// @Tags orchestration-rules
-// @Produce json
-// @Param id path string true "Orchestration rule ID"
-// @Success 200 {object} map[string]interface{} "Transition evaluation completed"
-// @Failure 404 {object} map[string]interface{} "Orchestration rule not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/orchestration-rules/{id}/evaluate-transition [get]
 func (h *Handler) EvaluateTransition(c *gin.Context) {
 	ctx := c.Request.Context()
 	routingRuleID := c.Param("id")
@@ -705,18 +513,6 @@ func (h *Handler) EvaluateTransition(c *gin.Context) {
 }
 
 // ExecuteTransition은 API 모드를 전환합니다.
-// @Summary Execute transition
-// @Description Execute a transition to a new mode for the orchestration rule
-// @Tags orchestration-rules
-// @Accept json
-// @Produce json
-// @Param id path string true "Orchestration rule ID"
-// @Param transition body object true "Transition information"
-// @Success 200 {object} map[string]interface{} "Transition executed successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body"
-// @Failure 404 {object} map[string]interface{} "Orchestration rule not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/orchestration-rules/{id}/execute-transition [post]
 func (h *Handler) ExecuteTransition(c *gin.Context) {
 	ctx := c.Request.Context()
 	routingRuleID := c.Param("id")
@@ -773,14 +569,6 @@ func generateOrchestrationRuleID() string {
 }
 
 // GracefulShutdown는 서비스를 안전하게 종료합니다.
-// @Summary Graceful shutdown
-// @Description Gracefully shutdown the API Bridge service
-// @Tags system
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]interface{} "Shutdown initiated successfully"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/shutdown [post]
 func (h *Handler) GracefulShutdown(c *gin.Context) {
 	ctx := c.Request.Context()
 

@@ -207,7 +207,6 @@ function Main {
     Test-ProjectStructure
     New-Directories
     Invoke-DownloadDependencies
-    Invoke-GenerateAPIDocs
     Invoke-BuildApplication
     Set-Environment
     

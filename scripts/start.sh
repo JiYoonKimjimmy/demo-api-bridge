@@ -219,7 +219,6 @@ main() {
     check_project_structure
     create_directories
     download_dependencies
-    generate_api_docs
     build_application
     set_environment
     
