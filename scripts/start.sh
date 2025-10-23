@@ -130,21 +130,6 @@ download_dependencies() {
     fi
 }
 
-# Generate API documentation
-generate_api_docs() {
-    print_info "Generating API documentation..."
-    if [ -f "scripts/generate-docs.sh" ]; then
-        print_info "Running API documentation generation script..."
-        if ./scripts/generate-docs.sh; then
-            print_success "API documentation generated successfully"
-        else
-            print_warning "Failed to generate API documentation"
-            print_info "Continuing with application startup..."
-        fi
-    else
-        print_warning "generate-docs.sh not found. Skipping API documentation generation."
-    fi
-}
 
 # Build the application
 build_application() {

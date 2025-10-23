@@ -108,29 +108,35 @@ function Invoke-DownloadDependencies {
     }
 }
 
-# Generate API documentation
-function Invoke-GenerateAPIDocs {
-    Write-Info "Generating API documentation..."
-    try {
-        if (Test-Path "scripts\generate-docs.ps1") {
-            Write-Info "Running API documentation generation script..."
-            & ".\scripts\generate-docs.ps1"
-            Write-Success "API documentation generated successfully"
-        }
-        else {
-            Write-Warning "generate-docs.ps1 not found. Skipping API documentation generation."
-        }
-    }
-    catch {
-        Write-Warning "Failed to generate API documentation"
-        Write-Info "Continuing with application startup..."
-    }
-}
 
 # Build the application
 function Invoke-BuildApplication {
     Write-Info "Building the application..."
     try {
+        # 기존 바이너리 삭제 (캐시 제거)
+        if (Test-Path "bin/api-bridge.exe") {
+            Write-Info "Removing existing binary to ensure clean build..."
+            
+            # 실행 중인 프로세스 종료
+            $processes = Get-Process -Name "api-bridge" -ErrorAction SilentlyContinue
+            if ($processes) {
+                Write-Info "Stopping existing api-bridge processes..."
+                $processes | Stop-Process -Force
+                Start-Sleep -Seconds 2
+            }
+            
+            # 바이너리 파일 삭제
+            try {
+                Remove-Item "bin/api-bridge.exe" -Force
+                Write-Info "Existing binary removed successfully"
+            }
+            catch {
+                Write-Warning "Could not remove existing binary: $($_.Exception.Message)"
+                Write-Info "Continuing with build..."
+            }
+        }
+        
+        # 새로 빌드
         go build -o bin/api-bridge.exe cmd/api-bridge/main.go
         Write-Success "Application built successfully"
     }
