@@ -134,6 +134,27 @@ download_dependencies() {
 # Build the application
 build_application() {
     print_info "Building the application..."
+    
+    # 기존 바이너리 삭제 (캐시 제거)
+    if [ -f "bin/api-bridge" ]; then
+        print_info "Removing existing binary to ensure clean build..."
+        
+        # 실행 중인 프로세스 종료
+        if pgrep -f "api-bridge" > /dev/null; then
+            print_info "Stopping existing api-bridge processes..."
+            pkill -f "api-bridge" || true
+            sleep 2
+        fi
+        
+        # 바이너리 파일 삭제
+        if rm -f "bin/api-bridge"; then
+            print_info "Existing binary removed successfully"
+        else
+            print_warning "Could not remove existing binary, continuing with build..."
+        fi
+    fi
+    
+    # 새로 빌드
     if go build -o bin/api-bridge cmd/api-bridge/main.go; then
         print_success "Application built successfully"
     else
