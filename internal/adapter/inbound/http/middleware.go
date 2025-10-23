@@ -3,6 +3,7 @@ package http
 import (
 	"demo-api-bridge/internal/core/port"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,7 +12,22 @@ import (
 
 // NewLoggingMiddleware는 로깅 미들웨어를 생성합니다.
 func NewLoggingMiddleware(log port.Logger) gin.HandlerFunc {
+	// 로깅에서 제외할 경로 패턴 정의
+	skipPaths := []string{
+		"/swagger/",
+		"/swagger-yaml/",
+		"/favicon.ico",
+	}
+
 	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		// 제외 경로 확인
+		for _, skipPath := range skipPaths {
+			if strings.HasPrefix(param.Path, skipPath) {
+				return "" // 로깅하지 않음
+			}
+		}
+
+		// 정상 로깅
 		log.Info("HTTP Request",
 			"timestamp", param.TimeStamp.Format(time.RFC3339),
 			"status", param.StatusCode,
