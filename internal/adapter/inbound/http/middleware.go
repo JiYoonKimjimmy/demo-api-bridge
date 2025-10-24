@@ -76,7 +76,24 @@ var rateLimiter = rate.NewLimiter(rate.Limit(100), 200) // 100 req/sec, burst 20
 
 // NewRateLimitMiddleware는 레이트 리미팅 미들웨어를 생성합니다.
 func NewRateLimitMiddleware() gin.HandlerFunc {
+	// Rate limit에서 제외할 경로 정의
+	skipPaths := []string{
+		"/debug/pprof/",
+		"/health",
+		"/ready",
+		"/metrics",
+	}
+
 	return func(c *gin.Context) {
+		// 제외 경로 확인
+		for _, skipPath := range skipPaths {
+			if strings.HasPrefix(c.Request.URL.Path, skipPath) {
+				c.Next()
+				return
+			}
+		}
+
+		// Rate limit 적용
 		if !rateLimiter.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "Rate limit exceeded",
