@@ -163,9 +163,14 @@ func (h *Handler) Metrics(c *gin.Context) {
 	})
 }
 
-// generateRequestID는 요청 ID를 생성합니다.
+// generateRequestID는 8자리 hex 형식의 요청 ID를 생성합니다.
 func generateRequestID() string {
-	return "req-" + time.Now().Format("20060102150405") + "-" + randomString(8)
+	b := make([]byte, 4)
+	if _, err := rand.Read(b); err != nil {
+		// 에러 발생 시 타임스탬프 기반 ID 사용
+		return hex.EncodeToString([]byte(time.Now().Format("15040599")))[0:8]
+	}
+	return hex.EncodeToString(b)
 }
 
 // randomString은 랜덤 문자열을 생성합니다.
