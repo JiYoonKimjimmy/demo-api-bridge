@@ -18,10 +18,13 @@ LEGACY_ENDPOINT_RESPONSE=$(curl -s -X POST "$BASE_URL/endpoints" \
     "name": "Legacy User API",
     "description": "레거시 사용자 API",
     "base_url": "https://legacy-api.example.com",
+    "path": "/api/v1/users",
     "health_url": "https://legacy-api.example.com/health",
+    "method": "GET",
     "is_active": true,
     "timeout": 30000,
-    "retry_count": 3
+    "retry_count": 3,
+    "priority": 1
   }')
 
 echo "레거시 엔드포인트 생성 응답:"
@@ -34,10 +37,13 @@ MODERN_ENDPOINT_RESPONSE=$(curl -s -X POST "$BASE_URL/endpoints" \
     "name": "Modern User API",
     "description": "모던 사용자 API",
     "base_url": "https://modern-api.example.com",
+    "path": "/api/v2/users",
     "health_url": "https://modern-api.example.com/health",
+    "method": "GET",
     "is_active": true,
     "timeout": 30000,
-    "retry_count": 3
+    "retry_count": 3,
+    "priority": 2
   }')
 
 echo "모던 엔드포인트 생성 응답:"
