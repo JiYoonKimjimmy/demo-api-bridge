@@ -2,12 +2,55 @@
 
 # Vegeta를 사용한 부하 테스트 스크립트 (Bash)
 
-# 기본 매개변수 설정
-TARGET=${1:-"http://localhost:10019/api/users"}
-DURATION=${2:-60}
-RATE=${3:-1000}
-METHOD=${4:-"GET"}
-OUTPUT=${5:-"results.txt"}
+# 기본값 설정
+TARGET="http://localhost:10019/api/users"
+DURATION=60
+RATE=1000
+METHOD="GET"
+OUTPUT="results.txt"
+
+# 사용법 출력 함수
+usage() {
+    cat << EOF
+Usage: $0 [OPTIONS]
+
+Options:
+    -t TARGET    Target URL (default: http://localhost:10019/api/users)
+    -d DURATION  Test duration in seconds (default: 60)
+    -r RATE      Requests per second (default: 1000)
+    -m METHOD    HTTP method (default: GET)
+    -o OUTPUT    Output file (default: results.txt)
+    -h           Show this help message
+
+Examples:
+    $0 -t "http://localhost:10019/api/test" -d 30
+    $0 -r 2000 -d 120
+    $0 -t "http://localhost:10019/api/users" -m POST -d 60
+
+EOF
+    exit 0
+}
+
+# 명명된 옵션 파싱
+while getopts "t:d:r:m:o:h" opt; do
+    case $opt in
+        t) TARGET="$OPTARG" ;;
+        d) DURATION="$OPTARG" ;;
+        r) RATE="$OPTARG" ;;
+        m) METHOD="$OPTARG" ;;
+        o) OUTPUT="$OPTARG" ;;
+        h) usage ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            echo "Use -h for help"
+            exit 1
+            ;;
+        :)
+            echo "Option -$OPTARG requires an argument" >&2
+            exit 1
+            ;;
+    esac
+done
 
 echo "Vegeta Load Testing"
 echo "====================="

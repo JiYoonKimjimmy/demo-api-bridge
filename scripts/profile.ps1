@@ -33,6 +33,21 @@ if (-not (Test-Path $OutputDir)) {
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $baseUrl = "http://localhost:$Port"
 
+# Check server health
+function Test-ServerHealth {
+    try {
+        $response = Invoke-WebRequest -Uri "$baseUrl/management/health" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+        if ($response.StatusCode -eq 200) {
+            Write-ColorOutput "✓ Server is running (Port: $Port)" "Green"
+            return $true
+        }
+    } catch {
+        Write-ColorOutput "✗ Server is not running or not responding" "Red"
+        Write-ColorOutput "  Please start the service first: .\scripts\start.ps1" "Yellow"
+        return $false
+    }
+}
+
 # CPU profiling
 function Start-CPUProfile {
     param([int]$Duration)
@@ -96,6 +111,11 @@ function Start-GoroutineProfile {
     } catch {
         Write-ColorOutput "Goroutine profiling failed: $_" "Red"
     }
+}
+
+# Check server health before profiling
+if (-not (Test-ServerHealth)) {
+    exit 1
 }
 
 Write-Host ""

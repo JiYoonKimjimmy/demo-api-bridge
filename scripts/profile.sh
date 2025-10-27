@@ -42,7 +42,7 @@ BASE_URL="http://localhost:$PORT"
 
 # 서버 상태 확인
 check_server_health() {
-    if curl -s -f "$BASE_URL/health" > /dev/null 2>&1; then
+    if curl -s -f "$BASE_URL/management/health" > /dev/null 2>&1; then
         print_color "$GREEN" "✓ 서버가 실행 중입니다 (Port: $PORT)"
         return 0
     else
