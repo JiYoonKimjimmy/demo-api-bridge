@@ -117,9 +117,9 @@ function Test-Endpoint {
 # Function to test service availability
 function Test-ServiceAvailability {
     Write-Info "Testing service availability..."
-    
+
     try {
-        $response = Invoke-WebRequest -Uri "$BaseUrl/health" -TimeoutSec $Timeout -UseBasicParsing -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "$BaseUrl/management/health" -TimeoutSec $Timeout -UseBasicParsing -ErrorAction Stop
         Write-Success "Service is available at $BaseUrl"
         return $true
     }
@@ -151,22 +151,22 @@ function Invoke-HealthChecks {
     }
     
     # Test health endpoint
-    if (-not (Test-Endpoint "/health" 200 "Health Check Endpoint")) {
+    if (-not (Test-Endpoint "/management/health" 200 "Health Check Endpoint")) {
         $failedTests++
     }
-    
+
     # Test readiness endpoint
-    if (-not (Test-Endpoint "/ready" 200 "Readiness Check Endpoint")) {
+    if (-not (Test-Endpoint "/management/ready" 200 "Readiness Check Endpoint")) {
         $failedTests++
     }
-    
+
     # Test status endpoint
-    if (-not (Test-Endpoint "/api/v1/status" 200 "Service Status Endpoint")) {
+    if (-not (Test-Endpoint "/management/v1/status" 200 "Service Status Endpoint")) {
         $failedTests++
     }
-    
+
     # Test metrics endpoint
-    if (-not (Test-Endpoint "/metrics" 200 "Prometheus Metrics Endpoint")) {
+    if (-not (Test-Endpoint "/management/metrics" 200 "Prometheus Metrics Endpoint")) {
         $failedTests++
     }
     
@@ -186,17 +186,17 @@ function Invoke-HealthChecks {
 # Function to run quick health check
 function Invoke-QuickCheck {
     Write-Info "Quick health check..."
-    
+
     try {
-        $response = Invoke-WebRequest -Uri "$BaseUrl/health" -TimeoutSec $Timeout -UseBasicParsing -ErrorAction Stop
-        
+        $response = Invoke-WebRequest -Uri "$BaseUrl/management/health" -TimeoutSec $Timeout -UseBasicParsing -ErrorAction Stop
+
         if ($response.StatusCode -eq 200) {
             Write-Success "Service is healthy ✓"
-            Write-Host "$BaseUrl/health returned status $($response.StatusCode)"
+            Write-Host "$BaseUrl/management/health returned status $($response.StatusCode)"
         }
         else {
             Write-Error "Service is not healthy ✗"
-            Write-Host "$BaseUrl/health returned status $($response.StatusCode)"
+            Write-Host "$BaseUrl/management/health returned status $($response.StatusCode)"
             exit 1
         }
     }

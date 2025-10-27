@@ -51,7 +51,7 @@ tags:
     description: 모니터링 메트릭
 
 paths:
-  /health:
+  /management/health:
     get:
       tags:
         - Health
@@ -88,7 +88,7 @@ paths:
                 type: string
                 example: database connection failed
 
-  /ready:
+  /management/ready:
     get:
       tags:
         - Health
@@ -123,7 +123,7 @@ paths:
               error:
                 type: string
 
-  /api/v1/status:
+  /management/v1/status:
     get:
       tags:
         - Health
@@ -138,17 +138,17 @@ paths:
           schema:
             $ref: "#/definitions/StatusResponse"
 
-  /api/v1/bridge/{path}:
+  /api/{path}:
     get:
       tags:
         - Bridge
       summary: Process Bridge Request (GET)
-      description: API 브리지를 통해 GET 요청을 처리합니다
+      description: API 브리지를 통해 GET 요청을 처리합니다. 모든 /api/* 경로로의 요청이 이 엔드포인트를 통해 처리됩니다.
       operationId: processBridgeRequestGet
       parameters:
         - name: path
           in: path
-          description: 브리지할 API 경로
+          description: 브리지할 API 경로 (예: v1/users/123)
           required: true
           type: string
       produces:
@@ -267,7 +267,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/endpoints:
+  /management/v1/endpoints:
     get:
       tags:
         - Endpoints
@@ -325,7 +325,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/endpoints/{id}:
+  /management/v1/endpoints/{id}:
     get:
       tags:
         - Endpoints
@@ -416,7 +416,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/routing-rules:
+  /management/v1/routing-rules:
     get:
       tags:
         - Routing Rules
@@ -474,7 +474,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/routing-rules/{id}:
+  /management/v1/routing-rules/{id}:
     get:
       tags:
         - Routing Rules
@@ -565,7 +565,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/orchestration-rules:
+  /management/v1/orchestration-rules:
     post:
       tags:
         - Orchestration Rules
@@ -597,7 +597,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/orchestration-rules/{id}:
+  /management/v1/orchestration-rules/{id}:
     get:
       tags:
         - Orchestration Rules
@@ -666,7 +666,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/orchestration-rules/{id}/evaluate-transition:
+  /management/v1/orchestration-rules/{id}/evaluate-transition:
     get:
       tags:
         - Orchestration Rules
@@ -708,7 +708,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/orchestration-rules/{id}/execute-transition:
+  /management/v1/orchestration-rules/{id}/execute-transition:
     post:
       tags:
         - Orchestration Rules
@@ -773,7 +773,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /api/v1/shutdown:
+  /management/v1/shutdown:
     post:
       tags:
         - System
@@ -802,7 +802,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /metrics:
+  /management/metrics:
     get:
       tags:
         - Metrics

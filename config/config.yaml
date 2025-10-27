@@ -15,9 +15,9 @@ log:
 
 # Oracle Database 설정
 database:
-  host: db.konadc.com
-  port: 15321
-  sid: kmdbp
+  host: dev1-db.konadc.com
+  port: 15322
+  sid: kmdbp19
   username: "map"
   password: "StgMAP1104#"
   max_open_conns: 25

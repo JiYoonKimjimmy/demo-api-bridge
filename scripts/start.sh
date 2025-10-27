@@ -138,14 +138,20 @@ build_application() {
     # 기존 바이너리 삭제 (캐시 제거)
     if [ -f "bin/api-bridge" ]; then
         print_info "Removing existing binary to ensure clean build..."
-        
-        # 실행 중인 프로세스 종료
-        if pgrep -f "api-bridge" > /dev/null; then
-            print_info "Stopping existing api-bridge processes..."
-            pkill -f "api-bridge" || true
-            sleep 2
+
+        # 실행 중인 프로세스 종료 (pgrep이 있는 경우에만)
+        if command -v pgrep &> /dev/null; then
+            if pgrep -f "api-bridge" > /dev/null 2>&1; then
+                print_info "Stopping existing api-bridge processes..."
+                pkill -f "api-bridge" || true
+                sleep 2
+            fi
+        else
+            # pgrep이 없는 경우 (Windows Git Bash 등)
+            # 프로세스 확인/종료를 건너뛰고 바이너리만 삭제
+            print_info "Process management tools not available, skipping process check..."
         fi
-        
+
         # 바이너리 파일 삭제
         if rm -f "bin/api-bridge"; then
             print_info "Existing binary removed successfully"
@@ -182,11 +188,11 @@ start_application() {
     print_info "Service will be available at: http://$TARGET_HOST:$PORT"
     echo ""
     print_info "Available endpoints:"
-    print_info "  GET  /health                    - Health check"
-    print_info "  GET  /ready                     - Readiness check"
-    print_info "  GET  /api/v1/status             - Service status"
-    print_info "  ANY  /api/v1/bridge/*           - API Bridge"
-    print_info "  GET  /metrics                   - Prometheus metrics"
+    print_info "  ANY  /api/*path                 - API Bridge (handles all /api/* requests)"
+    print_info "  GET  /management/health         - Health check"
+    print_info "  GET  /management/ready          - Readiness check"
+    print_info "  GET  /management/v1/status      - Service status"
+    print_info "  GET  /management/metrics        - Prometheus metrics"
     echo ""
     print_info "Press Ctrl+C to stop the service"
     echo "=================================="

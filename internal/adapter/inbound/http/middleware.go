@@ -77,11 +77,12 @@ var rateLimiter = rate.NewLimiter(rate.Limit(100), 200) // 100 req/sec, burst 20
 // NewRateLimitMiddleware는 레이트 리미팅 미들웨어를 생성합니다.
 func NewRateLimitMiddleware() gin.HandlerFunc {
 	// Rate limit에서 제외할 경로 정의
+	// 관리 API, 모니터링, Swagger는 Rate Limit에서 제외
 	skipPaths := []string{
-		"/debug/pprof/",
-		"/health",
-		"/ready",
-		"/metrics",
+		"/debug/pprof/",  // 프로파일링
+		"/management/",   // 관리 API (Health, CRUD, Metrics 등)
+		"/swagger/",      // Swagger UI
+		"/swagger-yaml/", // Swagger YAML 파일
 	}
 
 	return func(c *gin.Context) {

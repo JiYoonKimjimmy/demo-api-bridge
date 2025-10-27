@@ -74,7 +74,7 @@ fi
 # Function to check if service is running
 test_service_running() {
     local port=$1
-    if curl -s -f "http://localhost:$port/health" > /dev/null 2>&1; then
+    if curl -s -f "http://localhost:$port/management/health" > /dev/null 2>&1; then
         return 0
     else
         return 1
@@ -84,12 +84,12 @@ test_service_running() {
 # Function to send graceful shutdown request
 send_graceful_shutdown() {
     local port=$1
-    print_info "Sending graceful shutdown request to http://localhost:$port/api/v1/shutdown..."
-    
+    print_info "Sending graceful shutdown request to http://localhost:$port/management/v1/shutdown..."
+
     local response
     local http_code
-    
-    response=$(curl -s -w "%{http_code}" -X POST "http://localhost:$port/api/v1/shutdown" -o /tmp/shutdown_response.json)
+
+    response=$(curl -s -w "%{http_code}" -X POST "http://localhost:$port/management/v1/shutdown" -o /tmp/shutdown_response.json)
     http_code="${response: -3}"
     
     if [ "$http_code" -eq 200 ]; then

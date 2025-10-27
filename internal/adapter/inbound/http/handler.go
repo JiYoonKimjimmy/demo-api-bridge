@@ -104,7 +104,9 @@ func (h *Handler) ProcessBridgeRequest(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// 요청 파라미터 추출
-	path := c.Param("path")
+	// 변경: c.Param("path") 대신 c.Request.URL.Path 사용
+	// 이유: 와일드카드 라우트(/*path)에서 전체 경로를 추출하기 위함
+	path := c.Request.URL.Path
 	method := c.Request.Method
 
 	// 도메인 요청 객체 생성

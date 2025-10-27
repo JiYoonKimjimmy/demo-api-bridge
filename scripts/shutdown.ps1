@@ -58,9 +58,9 @@ if ($Help) {
 # Function to check if service is running
 function Test-ServiceRunning {
     param([string]$Port)
-    
+
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:$Port/health" -Method GET -TimeoutSec 5 -ErrorAction SilentlyContinue
+        $response = Invoke-WebRequest -Uri "http://localhost:$Port/management/health" -Method GET -TimeoutSec 5 -ErrorAction SilentlyContinue
         return $response.StatusCode -eq 200
     }
     catch {
@@ -71,11 +71,11 @@ function Test-ServiceRunning {
 # Function to send graceful shutdown request
 function Send-GracefulShutdown {
     param([string]$Port)
-    
+
     try {
-        Write-Info "Sending graceful shutdown request to http://localhost:$Port/api/v1/shutdown..."
-        
-        $response = Invoke-WebRequest -Uri "http://localhost:$Port/api/v1/shutdown" -Method POST -TimeoutSec 10
+        Write-Info "Sending graceful shutdown request to http://localhost:$Port/management/v1/shutdown..."
+
+        $response = Invoke-WebRequest -Uri "http://localhost:$Port/management/v1/shutdown" -Method POST -TimeoutSec 10
         
         if ($response.StatusCode -eq 200) {
             $responseBody = $response.Content | ConvertFrom-Json

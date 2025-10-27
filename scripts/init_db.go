@@ -16,8 +16,8 @@ import (
 func main() {
 	// Oracle DB 연결 정보 (config.yaml 기반)
 	host := "dev1-db.konadc.com"
-	port := 15321
-	sid := "kmdbp"
+	port := 15322
+	sid := "kmdbp19"
 	username := "map"
 	password := "StgMAP1104#"
 

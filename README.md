@@ -59,30 +59,30 @@ demo-api-bridge/
 - **성능 테스트**: 벤치마크 및 부하 테스트 프레임워크 구축
 - **CRUD API**: 모든 모델에 대한 완전한 CRUD 인터페이스 ✅
 
-### 🆕 새로 추가된 CRUD API
+### 🆕 Management API (관리용 API)
 
 API Bridge 시스템의 모든 모델에 대한 완전한 CRUD API가 구현되었습니다:
 
 #### APIEndpoint CRUD
-- `POST /api/v1/endpoints` - 엔드포인트 생성
-- `GET /api/v1/endpoints` - 엔드포인트 목록 조회
-- `GET /api/v1/endpoints/{id}` - 엔드포인트 조회
-- `PUT /api/v1/endpoints/{id}` - 엔드포인트 수정
-- `DELETE /api/v1/endpoints/{id}` - 엔드포인트 삭제
+- `POST /management/v1/endpoints` - 엔드포인트 생성
+- `GET /management/v1/endpoints` - 엔드포인트 목록 조회
+- `GET /management/v1/endpoints/{id}` - 엔드포인트 조회
+- `PUT /management/v1/endpoints/{id}` - 엔드포인트 수정
+- `DELETE /management/v1/endpoints/{id}` - 엔드포인트 삭제
 
 #### RoutingRule CRUD
-- `POST /api/v1/routing-rules` - 라우팅 규칙 생성
-- `GET /api/v1/routing-rules` - 라우팅 규칙 목록 조회
-- `GET /api/v1/routing-rules/{id}` - 라우팅 규칙 조회
-- `PUT /api/v1/routing-rules/{id}` - 라우팅 규칙 수정
-- `DELETE /api/v1/routing-rules/{id}` - 라우팅 규칙 삭제
+- `POST /management/v1/routing-rules` - 라우팅 규칙 생성
+- `GET /management/v1/routing-rules` - 라우팅 규칙 목록 조회
+- `GET /management/v1/routing-rules/{id}` - 라우팅 규칙 조회
+- `PUT /management/v1/routing-rules/{id}` - 라우팅 규칙 수정
+- `DELETE /management/v1/routing-rules/{id}` - 라우팅 규칙 삭제
 
 #### OrchestrationRule CRUD
-- `POST /api/v1/orchestration-rules` - 오케스트레이션 규칙 생성
-- `GET /api/v1/orchestration-rules/{id}` - 오케스트레이션 규칙 조회
-- `PUT /api/v1/orchestration-rules/{id}` - 오케스트레이션 규칙 수정
-- `GET /api/v1/orchestration-rules/{id}/evaluate-transition` - 전환 가능성 평가
-- `POST /api/v1/orchestration-rules/{id}/execute-transition` - 전환 실행
+- `POST /management/v1/orchestration-rules` - 오케스트레이션 규칙 생성
+- `GET /management/v1/orchestration-rules/{id}` - 오케스트레이션 규칙 조회
+- `PUT /management/v1/orchestration-rules/{id}` - 오케스트레이션 규칙 수정
+- `GET /management/v1/orchestration-rules/{id}/evaluate-transition` - 전환 가능성 평가
+- `POST /management/v1/orchestration-rules/{id}/execute-transition` - 전환 실행
 
 자세한 API 문서는 [CRUD API 문서](docs/CRUD_API_DOCUMENTATION.md)를 참조하세요.
 
@@ -208,10 +208,21 @@ cp config/config.example.yaml config/config.yaml
 
 ## 📚 API 엔드포인트
 
-### Health Check
+### Bridge API (프록시)
 
 ```bash
-GET /health
+# 레거시/모던 API로 자동 프록시
+GET /api/v1/users/123
+POST /api/v1/orders
+PUT /api/v2/products/456
+```
+
+### Management API
+
+#### Health Check
+
+```bash
+GET /management/health
 ```
 
 응답:
@@ -223,16 +234,39 @@ GET /health
 }
 ```
 
-### Readiness Check
+#### Readiness Check
 
 ```bash
-GET /ready
+GET /management/ready
 ```
 
-### Status
+#### Status
 
 ```bash
-GET /api/v1/status
+GET /management/v1/status
+```
+
+#### CRUD API 엔드포인트
+
+```bash
+# Endpoints
+POST   /management/v1/endpoints
+GET    /management/v1/endpoints
+GET    /management/v1/endpoints/{id}
+PUT    /management/v1/endpoints/{id}
+DELETE /management/v1/endpoints/{id}
+
+# Routing Rules
+POST   /management/v1/routing-rules
+GET    /management/v1/routing-rules
+GET    /management/v1/routing-rules/{id}
+PUT    /management/v1/routing-rules/{id}
+DELETE /management/v1/routing-rules/{id}
+
+# Orchestration Rules
+POST /management/v1/orchestration-rules
+GET  /management/v1/orchestration-rules/{id}
+PUT  /management/v1/orchestration-rules/{id}
 ```
 
 ## 🧪 테스트
@@ -306,7 +340,7 @@ make build
 
 ## 📊 모니터링
 
-Prometheus 메트릭은 `/metrics` 엔드포인트에서 확인할 수 있습니다 (설정 시).
+Prometheus 메트릭은 `/management/metrics` 엔드포인트에서 확인할 수 있습니다 (설정 시).
 
 ### 프로파일링
 

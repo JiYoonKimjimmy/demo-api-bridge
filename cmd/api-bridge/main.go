@@ -300,45 +300,6 @@ func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
 		ginSwagger.URL("http://localhost:10019/swagger-yaml/swagger.yaml")))
 
-	// Health Check
-	router.GET("/health", handler.HealthCheck)
-	router.GET("/ready", handler.ReadinessCheck)
-	router.GET("/api/v1/status", handler.Status)
-
-	// Graceful Shutdown
-	router.POST("/api/v1/shutdown", handler.GracefulShutdown)
-
-	// API Bridge - 모든 요청 처리
-	router.Any("/api/v1/bridge/*path", handler.ProcessBridgeRequest)
-
-	// === CRUD API 엔드포인트 ===
-
-	// APIEndpoint CRUD
-	router.POST("/api/v1/endpoints", handler.CreateEndpoint)
-	router.GET("/api/v1/endpoints", handler.ListEndpoints)
-	router.GET("/api/v1/endpoints/:id", handler.GetEndpoint)
-	router.PUT("/api/v1/endpoints/:id", handler.UpdateEndpoint)
-	router.DELETE("/api/v1/endpoints/:id", handler.DeleteEndpoint)
-
-	// RoutingRule CRUD
-	router.POST("/api/v1/routing-rules", handler.CreateRoutingRule)
-	router.GET("/api/v1/routing-rules", handler.ListRoutingRules)
-	router.GET("/api/v1/routing-rules/:id", handler.GetRoutingRule)
-	router.PUT("/api/v1/routing-rules/:id", handler.UpdateRoutingRule)
-	router.DELETE("/api/v1/routing-rules/:id", handler.DeleteRoutingRule)
-
-	// OrchestrationRule CRUD
-	router.POST("/api/v1/orchestration-rules", handler.CreateOrchestrationRule)
-	router.GET("/api/v1/orchestration-rules/:id", handler.GetOrchestrationRule)
-	router.PUT("/api/v1/orchestration-rules/:id", handler.UpdateOrchestrationRule)
-
-	// OrchestrationRule 전환 관련
-	router.GET("/api/v1/orchestration-rules/:id/evaluate-transition", handler.EvaluateTransition)
-	router.POST("/api/v1/orchestration-rules/:id/execute-transition", handler.ExecuteTransition)
-
-	// Metrics
-	router.GET("/metrics", handler.Metrics)
-
 	// pprof 프로파일링 엔드포인트 (디버그 전용)
 	// /debug/pprof/ - 프로파일링 인덱스
 	// /debug/pprof/cmdline - 커맨드라인
@@ -351,6 +312,42 @@ func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
 	// /debug/pprof/block - 블록 프로파일
 	// /debug/pprof/mutex - 뮤텍스 프로파일
 	router.GET("/debug/pprof/*any", gin.WrapH(http.DefaultServeMux))
+
+	// === Management API ===
+	// Health Check & Monitoring
+	router.GET("/management/health", handler.HealthCheck)
+	router.GET("/management/ready", handler.ReadinessCheck)
+	router.GET("/management/metrics", handler.Metrics)
+	router.GET("/management/v1/status", handler.Status)
+
+	// Graceful Shutdown
+	router.POST("/management/v1/shutdown", handler.GracefulShutdown)
+
+	// APIEndpoint CRUD
+	router.POST("/management/v1/endpoints", handler.CreateEndpoint)
+	router.GET("/management/v1/endpoints", handler.ListEndpoints)
+	router.GET("/management/v1/endpoints/:id", handler.GetEndpoint)
+	router.PUT("/management/v1/endpoints/:id", handler.UpdateEndpoint)
+	router.DELETE("/management/v1/endpoints/:id", handler.DeleteEndpoint)
+
+	// RoutingRule CRUD
+	router.POST("/management/v1/routing-rules", handler.CreateRoutingRule)
+	router.GET("/management/v1/routing-rules", handler.ListRoutingRules)
+	router.GET("/management/v1/routing-rules/:id", handler.GetRoutingRule)
+	router.PUT("/management/v1/routing-rules/:id", handler.UpdateRoutingRule)
+	router.DELETE("/management/v1/routing-rules/:id", handler.DeleteRoutingRule)
+
+	// OrchestrationRule CRUD
+	router.POST("/management/v1/orchestration-rules", handler.CreateOrchestrationRule)
+	router.GET("/management/v1/orchestration-rules/:id", handler.GetOrchestrationRule)
+	router.PUT("/management/v1/orchestration-rules/:id", handler.UpdateOrchestrationRule)
+
+	// OrchestrationRule 전환 관련
+	router.GET("/management/v1/orchestration-rules/:id/evaluate-transition", handler.EvaluateTransition)
+	router.POST("/management/v1/orchestration-rules/:id/execute-transition", handler.ExecuteTransition)
+
+	// === API Bridge - /api/* 요청 처리 (반드시 마지막에 등록!) ===
+	router.Any("/api/*path", handler.ProcessBridgeRequest)
 }
 
 // cleanup은 리소스를 정리합니다.

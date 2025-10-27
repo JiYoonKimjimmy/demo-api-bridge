@@ -159,9 +159,9 @@ test_endpoint() {
 # Function to test service availability
 test_service_availability() {
     print_info "Testing service availability..."
-    
+
     # Try to connect to the service
-    if curl -s --connect-timeout $TIMEOUT "$BASE_URL/health" > /dev/null 2>&1; then
+    if curl -s --connect-timeout $TIMEOUT "$BASE_URL/management/health" > /dev/null 2>&1; then
         print_success "Service is available at $BASE_URL"
         return 0
     else
@@ -192,22 +192,22 @@ run_health_checks() {
     fi
     
     # Test health endpoint
-    if ! test_endpoint "/health" "200" "Health Check Endpoint"; then
+    if ! test_endpoint "/management/health" "200" "Health Check Endpoint"; then
         ((failed_tests++))
     fi
-    
+
     # Test readiness endpoint
-    if ! test_endpoint "/ready" "200" "Readiness Check Endpoint"; then
+    if ! test_endpoint "/management/ready" "200" "Readiness Check Endpoint"; then
         ((failed_tests++))
     fi
-    
+
     # Test status endpoint
-    if ! test_endpoint "/api/v1/status" "200" "Service Status Endpoint"; then
+    if ! test_endpoint "/management/v1/status" "200" "Service Status Endpoint"; then
         ((failed_tests++))
     fi
-    
+
     # Test metrics endpoint
-    if ! test_endpoint "/metrics" "200" "Prometheus Metrics Endpoint"; then
+    if ! test_endpoint "/management/metrics" "200" "Prometheus Metrics Endpoint"; then
         ((failed_tests++))
     fi
     
@@ -226,19 +226,19 @@ run_health_checks() {
 # Function to run quick health check
 run_quick_check() {
     print_info "Quick health check..."
-    
+
     local response
     local http_status
-    
-    response=$(curl -s -w "\n%{http_code}" --connect-timeout $TIMEOUT "$BASE_URL/health" 2>/dev/null || echo -e "\n000")
+
+    response=$(curl -s -w "\n%{http_code}" --connect-timeout $TIMEOUT "$BASE_URL/management/health" 2>/dev/null || echo -e "\n000")
     http_status=$(echo "$response" | tail -n1)
-    
+
     if [ "$http_status" = "200" ]; then
         print_success "Service is healthy ✓"
-        echo "$BASE_URL/health returned status $http_status"
+        echo "$BASE_URL/management/health returned status $http_status"
     else
         print_error "Service is not healthy ✗"
-        echo "$BASE_URL/health returned status $http_status"
+        echo "$BASE_URL/management/health returned status $http_status"
         exit 1
     fi
 }
