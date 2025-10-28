@@ -118,7 +118,7 @@ func setupTestHandler() (*Handler, *MockBridgeService, *MockRoutingService, *Moc
 	mockHealth := &MockHealthService{}
 
 	// Create logger and metrics
-	testLogger := logger.NewLogger("test", "info")
+	testLogger := logger.NewLogger()
 	testMetrics := metrics.NewMetrics()
 
 	// Create handler

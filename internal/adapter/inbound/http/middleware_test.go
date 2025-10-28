@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"demo-api-bridge/pkg/logger"
 	"demo-api-bridge/pkg/metrics"
@@ -13,269 +12,211 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupTestMiddleware() (*Middleware, *gin.Engine) {
-	// Create logger and metrics
-	testLogger := logger.NewLogger("test", "info")
-	testMetrics := metrics.NewMetrics()
-
-	// Create middleware
-	middleware := NewMiddleware(testLogger, testMetrics)
-
-	// Setup Gin router
+func setupTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
+	return router
+}
 
-	// Apply middlewares
-	router.Use(middleware.Recovery())
-	router.Use(middleware.RequestLogger())
-	router.Use(middleware.Metrics())
-	router.Use(middleware.TraceIDMiddleware())
-	router.Use(middleware.SecurityHeaders())
-	router.Use(middleware.CORSMiddleware())
+// TestNewLoggingMiddleware는 로깅 미들웨어를 테스트합니다.
+func TestNewLoggingMiddleware(t *testing.T) {
+	testLogger := logger.NewLogger()
+	router := setupTestRouter()
 
-	// Add test route
+	// 로깅 미들웨어 적용
+	router.Use(NewLoggingMiddleware(testLogger))
+
+	// 테스트 라우트 추가
 	router.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	// 요청 생성 및 실행
+	req, _ := http.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// 검증
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestLoggingMiddlewareSkipPaths는 로깅 제외 경로를 테스트합니다.
+func TestLoggingMiddlewareSkipPaths(t *testing.T) {
+	testLogger := logger.NewLogger()
+	router := setupTestRouter()
+
+	router.Use(NewLoggingMiddleware(testLogger))
+
+	// Swagger 경로 추가
+	router.GET("/swagger/index.html", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "swagger"})
 	})
 
-	return middleware, router
-}
-
-func TestTraceIDMiddleware(t *testing.T) {
-	_, router := setupTestMiddleware()
-
-	// Test without existing Trace ID
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/swagger/index.html", nil)
 	w := httptest.NewRecorder()
-
 	router.ServeHTTP(w, req)
 
-	// Assertions
+	// 검증 - 로깅이 스킵되어도 요청은 정상 처리
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.NotEmpty(t, w.Header().Get("X-Trace-ID"))
 }
 
-func TestTraceIDMiddlewareWithExistingID(t *testing.T) {
-	_, router := setupTestMiddleware()
+// TestNewMetricsMiddleware는 메트릭 미들웨어를 테스트합니다.
+func TestNewMetricsMiddleware(t *testing.T) {
+	testMetrics := metrics.New("test")
+	router := setupTestRouter()
 
-	// Test with existing Trace ID
+	// 메트릭 미들웨어 적용
+	router.Use(NewMetricsMiddleware(testMetrics))
+
+	// 테스트 라우트 추가
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	// 요청 생성 및 실행
 	req, _ := http.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Trace-ID", "test-trace-id-123")
 	w := httptest.NewRecorder()
-
 	router.ServeHTTP(w, req)
 
-	// Assertions
+	// 검증
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "test-trace-id-123", w.Header().Get("X-Trace-ID"))
 }
 
-func TestSecurityHeaders(t *testing.T) {
-	_, router := setupTestMiddleware()
+// TestNewCORSMiddleware는 CORS 미들웨어를 테스트합니다.
+func TestNewCORSMiddleware(t *testing.T) {
+	router := setupTestRouter()
 
+	// CORS 미들웨어 적용
+	router.Use(NewCORSMiddleware())
+
+	// 테스트 라우트 추가
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	// 요청 생성 및 실행
 	req, _ := http.NewRequest("GET", "/test", nil)
 	w := httptest.NewRecorder()
-
 	router.ServeHTTP(w, req)
 
-	// Assertions
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
-	assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
-	assert.Equal(t, "1; mode=block", w.Header().Get("X-XSS-Protection"))
-	assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
-}
-
-func TestCORSMiddleware(t *testing.T) {
-	_, router := setupTestMiddleware()
-
-	req, _ := http.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Assertions
+	// 검증 - CORS 헤더 확인
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "GET, POST, PUT, DELETE, OPTIONS", w.Header().Get("Access-Control-Allow-Methods"))
 	assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
 }
 
+// TestCORSMiddlewareOPTIONS는 OPTIONS 요청을 테스트합니다.
 func TestCORSMiddlewareOPTIONS(t *testing.T) {
-	_, router := setupTestMiddleware()
+	router := setupTestRouter()
 
-	req, _ := http.NewRequest("OPTIONS", "/test", nil)
-	w := httptest.NewRecorder()
+	router.Use(NewCORSMiddleware())
 
-	router.ServeHTTP(w, req)
-
-	// Assertions
-	assert.Equal(t, http.StatusNoContent, w.Code)
-}
-
-func TestRequestSizeLimiter(t *testing.T) {
-	middleware, router := setupTestMiddleware()
-
-	// Apply size limiter
-	router.Use(middleware.RequestSizeLimiter(1024)) // 1KB limit
-
-	// Test with small request
-	req, _ := http.NewRequest("POST", "/test", nil)
-	req.ContentLength = 512
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Should pass
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestRequestSizeLimiterExceeded(t *testing.T) {
-	middleware, router := setupTestMiddleware()
-
-	// Apply size limiter
-	router.Use(middleware.RequestSizeLimiter(1024)) // 1KB limit
-
-	// Test with large request
-	req, _ := http.NewRequest("POST", "/test", nil)
-	req.ContentLength = 2048 // 2KB
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Should fail
-	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
-}
-
-func TestTimeoutMiddleware(t *testing.T) {
-	middleware, router := setupTestMiddleware()
-
-	// Apply timeout middleware
-	router.Use(middleware.TimeoutMiddleware(100 * time.Millisecond))
-
-	// Add a slow route
-	router.GET("/slow", func(c *gin.Context) {
-		time.Sleep(200 * time.Millisecond) // Longer than timeout
-		c.JSON(http.StatusOK, gin.H{"message": "slow"})
-	})
-
-	req, _ := http.NewRequest("GET", "/slow", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Should timeout (context deadline exceeded)
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestRecoveryMiddleware(t *testing.T) {
-	middleware, router := setupTestMiddleware()
-
-	// Add a route that panics
-	router.GET("/panic", func(c *gin.Context) {
-		panic("test panic")
-	})
-
-	req, _ := http.NewRequest("GET", "/panic", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Should recover and return 500
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestMetricsMiddleware(t *testing.T) {
-	_, router := setupTestMiddleware()
-
-	req, _ := http.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Should record metrics (we can't easily test the metrics recording without exposing internal state)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestHealthCheckSkipMiddleware(t *testing.T) {
-	middleware, router := setupTestMiddleware()
-
-	// Apply health check skip middleware
-	router.Use(middleware.HealthCheckSkip())
-
-	req, _ := http.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Should work normally
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "ok", w.Header().Get("X-Status"))
-}
-
-// Test middleware chain
-func TestMiddlewareChain(t *testing.T) {
-	middleware, router := setupTestMiddleware()
-
-	// Apply all middlewares in order
-	router.Use(middleware.Recovery())
-	router.Use(middleware.RequestLogger())
-	router.Use(middleware.Metrics())
-	router.Use(middleware.TraceIDMiddleware())
-	router.Use(middleware.SecurityHeaders())
-	router.Use(middleware.CORSMiddleware())
-	router.Use(middleware.RequestSizeLimiter(1024))
-	router.Use(middleware.TimeoutMiddleware(5 * time.Second))
-
-	req, _ := http.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Trace-ID", "test-trace-123")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Should apply all middlewares
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "test-trace-123", w.Header().Get("X-Trace-ID"))
-	assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
-}
-
-// Benchmark tests
-func BenchmarkMiddlewareChain(b *testing.B) {
-	_, router := setupTestMiddleware()
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("GET", "/test", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-	}
-}
-
-func BenchmarkTraceIDMiddleware(b *testing.B) {
-	middleware, router := gin.New(), gin.New()
-	router.Use(middleware.TraceIDMiddleware())
 	router.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
 
-	b.ResetTimer()
+	// OPTIONS 요청 생성 및 실행
+	req, _ := http.NewRequest("OPTIONS", "/test", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("GET", "/test", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-	}
+	// 검증 - OPTIONS 요청은 204 No Content 반환
+	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
-func BenchmarkSecurityHeaders(b *testing.B) {
-	middleware, router := gin.New(), gin.New()
-	router.Use(middleware.SecurityHeaders())
+// TestNewRateLimitMiddleware는 Rate Limit 미들웨어를 테스트합니다.
+func TestNewRateLimitMiddleware(t *testing.T) {
+	router := setupTestRouter()
+
+	// Rate Limit 미들웨어 적용
+	router.Use(NewRateLimitMiddleware())
+
+	// 테스트 라우트 추가
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	// 요청 생성 및 실행
+	req, _ := http.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// 검증 - 정상 요청은 통과
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestRateLimitMiddlewareSkipPaths는 Rate Limit 제외 경로를 테스트합니다.
+func TestRateLimitMiddlewareSkipPaths(t *testing.T) {
+	router := setupTestRouter()
+
+	router.Use(NewRateLimitMiddleware())
+
+	// 관리 API 경로 추가 (Rate Limit 제외)
+	router.GET("/management/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	req, _ := http.NewRequest("GET", "/management/health", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// 검증 - 제외 경로는 항상 통과
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestMiddlewareChain는 여러 미들웨어를 체인으로 연결하여 테스트합니다.
+func TestMiddlewareChain(t *testing.T) {
+	testLogger := logger.NewLogger()
+	testMetrics := metrics.New("test")
+	router := setupTestRouter()
+
+	// 모든 미들웨어 적용
+	router.Use(NewLoggingMiddleware(testLogger))
+	router.Use(NewMetricsMiddleware(testMetrics))
+	router.Use(NewCORSMiddleware())
+	router.Use(NewRateLimitMiddleware())
+
+	// 테스트 라우트 추가
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	// 요청 생성 및 실행
+	req, _ := http.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// 검증
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+}
+
+// TestLoggingMiddlewareWithError는 에러 응답 시 로깅을 테스트합니다.
+func TestLoggingMiddlewareWithError(t *testing.T) {
+	testLogger := logger.NewLogger()
+	router := setupTestRouter()
+
+	router.Use(NewLoggingMiddleware(testLogger))
+
+	// 에러를 반환하는 라우트
+	router.GET("/error", func(c *gin.Context) {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+	})
+
+	req, _ := http.NewRequest("GET", "/error", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// 검증 - 에러 상태 코드
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// Benchmark tests
+func BenchmarkLoggingMiddleware(b *testing.B) {
+	testLogger := logger.NewLogger()
+	router := setupTestRouter()
+	router.Use(NewLoggingMiddleware(testLogger))
 	router.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
@@ -290,8 +231,64 @@ func BenchmarkSecurityHeaders(b *testing.B) {
 }
 
 func BenchmarkCORSMiddleware(b *testing.B) {
-	middleware, router := gin.New(), gin.New()
-	router.Use(middleware.CORSMiddleware())
+	router := setupTestRouter()
+	router.Use(NewCORSMiddleware())
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+	}
+}
+
+func BenchmarkRateLimitMiddleware(b *testing.B) {
+	router := setupTestRouter()
+	router.Use(NewRateLimitMiddleware())
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+	}
+}
+
+func BenchmarkMetricsMiddleware(b *testing.B) {
+	testMetrics := metrics.New("test")
+	router := setupTestRouter()
+	router.Use(NewMetricsMiddleware(testMetrics))
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+	}
+}
+
+func BenchmarkMiddlewareChain(b *testing.B) {
+	testLogger := logger.NewLogger()
+	testMetrics := metrics.New("test")
+	router := setupTestRouter()
+
+	router.Use(NewLoggingMiddleware(testLogger))
+	router.Use(NewMetricsMiddleware(testMetrics))
+	router.Use(NewCORSMiddleware())
+	router.Use(NewRateLimitMiddleware())
+
 	router.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
