@@ -12,7 +12,8 @@ import (
 	"time"
 )
 
-// bridgeService는 BridgeService 인터페이스를 구현하는 핵심 서비스입니다.
+// bridgeService
+// : BridgeService 인터페이스를 구현하는 핵심 서비스입니다.
 //
 // 이 서비스는 다음의 책임을 가집니다:
 //   - 클라이언트 요청을 적절한 외부 API로 라우팅
@@ -36,7 +37,8 @@ type bridgeService struct {
 	metrics           port.MetricsCollector        // 메트릭 수집기
 }
 
-// NewBridgeService는 새로운 BridgeService 인스턴스를 생성합니다.
+// NewBridgeService
+// : 새로운 BridgeService 인스턴스를 생성합니다.
 //
 // 이 팩토리 함수는 의존성 주입 패턴을 사용하여 필요한 모든 저장소와 서비스를 주입받습니다.
 // 반환된 서비스는 즉시 요청 처리를 시작할 수 있습니다.
@@ -78,7 +80,8 @@ func NewBridgeService(
 	}
 }
 
-// ProcessRequest는 클라이언트로부터 받은 API 요청을 처리하고 응답을 반환합니다.
+// ProcessRequest
+// : 클라이언트로부터 받은 API 요청을 처리하고 응답을 반환합니다.
 //
 // 이 메서드는 API Bridge의 핵심 로직으로, 다음 단계를 수행합니다:
 //  1. 요청 유효성 검증
@@ -139,7 +142,8 @@ func (s *bridgeService) ProcessRequest(ctx context.Context, request *domain.Requ
 	return s.processOrchestratedRequest(ctx, request, rule, orchestrationRule, start)
 }
 
-// GetRoutingRule은 요청에 매칭되는 라우팅 규칙을 조회합니다.
+// GetRoutingRule
+// : 요청에 매칭되는 라우팅 규칙을 조회합니다.
 func (s *bridgeService) GetRoutingRule(ctx context.Context, request *domain.Request) (*domain.RoutingRule, error) {
 	rules, err := s.routingRepo.FindMatchingRules(ctx, request)
 	if err != nil {
@@ -161,7 +165,8 @@ func (s *bridgeService) GetRoutingRule(ctx context.Context, request *domain.Requ
 	return selectedRule, nil
 }
 
-// GetEndpoint는 엔드포인트 ID로 엔드포인트 정보를 조회합니다.
+// GetEndpoint
+// : 엔드포인트 ID로 엔드포인트 정보를 조회합니다.
 func (s *bridgeService) GetEndpoint(ctx context.Context, endpointID string) (*domain.APIEndpoint, error) {
 	endpoint, err := s.endpointRepo.FindByID(ctx, endpointID)
 	if err != nil {
