@@ -148,7 +148,7 @@ paths:
       parameters:
         - name: path
           in: path
-          description: 브리지할 API 경로 (예: v1/users/123)
+          description: "브리지할 API 경로 (예: v1/users/123)"
           required: true
           type: string
       produces:
