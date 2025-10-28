@@ -7,11 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"demo-api-bridge/internal/core/domain"
 	"demo-api-bridge/pkg/logger"
-	"demo-api-bridge/pkg/metrics"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -28,66 +26,71 @@ func (m *MockBridgeService) ProcessRequest(ctx context.Context, req *domain.Requ
 	return args.Get(0).(*domain.Response), args.Error(1)
 }
 
+func (m *MockBridgeService) GetRoutingRule(ctx context.Context, request *domain.Request) (*domain.RoutingRule, error) {
+	args := m.Called(ctx, request)
+	return args.Get(0).(*domain.RoutingRule), args.Error(1)
+}
+
+func (m *MockBridgeService) GetEndpoint(ctx context.Context, endpointID string) (*domain.APIEndpoint, error) {
+	args := m.Called(ctx, endpointID)
+	return args.Get(0).(*domain.APIEndpoint), args.Error(1)
+}
+
 type MockRoutingService struct {
 	mock.Mock
 }
 
-func (m *MockRoutingService) GetAllRoutingRules(ctx context.Context) ([]*domain.RoutingRule, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]*domain.RoutingRule), args.Error(1)
-}
-
-func (m *MockRoutingService) GetRoutingRuleByID(ctx context.Context, id int64) (*domain.RoutingRule, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(*domain.RoutingRule), args.Error(1)
-}
-
-func (m *MockRoutingService) CreateRoutingRule(ctx context.Context, rule *domain.RoutingRule) (*domain.RoutingRule, error) {
+func (m *MockRoutingService) CreateRule(ctx context.Context, rule *domain.RoutingRule) error {
 	args := m.Called(ctx, rule)
-	return args.Get(0).(*domain.RoutingRule), args.Error(1)
-}
-
-func (m *MockRoutingService) UpdateRoutingRule(ctx context.Context, rule *domain.RoutingRule) (*domain.RoutingRule, error) {
-	args := m.Called(ctx, rule)
-	return args.Get(0).(*domain.RoutingRule), args.Error(1)
-}
-
-func (m *MockRoutingService) DeleteRoutingRule(ctx context.Context, id int64) error {
-	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
-func (m *MockRoutingService) FindMatchingRule(ctx context.Context, method, path string) (*domain.RoutingRule, error) {
-	args := m.Called(ctx, method, path)
+func (m *MockRoutingService) UpdateRule(ctx context.Context, rule *domain.RoutingRule) error {
+	args := m.Called(ctx, rule)
+	return args.Error(0)
+}
+
+func (m *MockRoutingService) DeleteRule(ctx context.Context, ruleID string) error {
+	args := m.Called(ctx, ruleID)
+	return args.Error(0)
+}
+
+func (m *MockRoutingService) GetRule(ctx context.Context, ruleID string) (*domain.RoutingRule, error) {
+	args := m.Called(ctx, ruleID)
 	return args.Get(0).(*domain.RoutingRule), args.Error(1)
+}
+
+func (m *MockRoutingService) ListRules(ctx context.Context) ([]*domain.RoutingRule, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*domain.RoutingRule), args.Error(1)
 }
 
 type MockEndpointService struct {
 	mock.Mock
 }
 
-func (m *MockEndpointService) GetAllEndpoints(ctx context.Context) ([]*domain.Endpoint, error) {
+func (m *MockEndpointService) ListEndpoints(ctx context.Context) ([]*domain.APIEndpoint, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]*domain.Endpoint), args.Error(1)
+	return args.Get(0).([]*domain.APIEndpoint), args.Error(1)
 }
 
-func (m *MockEndpointService) GetEndpointByID(ctx context.Context, id int64) (*domain.Endpoint, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(*domain.Endpoint), args.Error(1)
+func (m *MockEndpointService) GetEndpoint(ctx context.Context, endpointID string) (*domain.APIEndpoint, error) {
+	args := m.Called(ctx, endpointID)
+	return args.Get(0).(*domain.APIEndpoint), args.Error(1)
 }
 
-func (m *MockEndpointService) CreateEndpoint(ctx context.Context, endpoint *domain.Endpoint) (*domain.Endpoint, error) {
+func (m *MockEndpointService) CreateEndpoint(ctx context.Context, endpoint *domain.APIEndpoint) error {
 	args := m.Called(ctx, endpoint)
-	return args.Get(0).(*domain.Endpoint), args.Error(1)
+	return args.Error(0)
 }
 
-func (m *MockEndpointService) UpdateEndpoint(ctx context.Context, endpoint *domain.Endpoint) (*domain.Endpoint, error) {
+func (m *MockEndpointService) UpdateEndpoint(ctx context.Context, endpoint *domain.APIEndpoint) error {
 	args := m.Called(ctx, endpoint)
-	return args.Get(0).(*domain.Endpoint), args.Error(1)
+	return args.Error(0)
 }
 
-func (m *MockEndpointService) DeleteEndpoint(ctx context.Context, id int64) error {
-	args := m.Called(ctx, id)
+func (m *MockEndpointService) DeleteEndpoint(ctx context.Context, endpointID string) error {
+	args := m.Called(ctx, endpointID)
 	return args.Error(0)
 }
 
@@ -95,63 +98,108 @@ type MockHealthService struct {
 	mock.Mock
 }
 
-func (m *MockHealthService) CheckHealth(ctx context.Context) (*domain.HealthStatus, error) {
+func (m *MockHealthService) CheckHealth(ctx context.Context) error {
 	args := m.Called(ctx)
-	return args.Get(0).(*domain.HealthStatus), args.Error(1)
+	return args.Error(0)
 }
 
-func (m *MockHealthService) CheckReadiness(ctx context.Context) (*domain.ReadinessStatus, error) {
+func (m *MockHealthService) CheckReadiness(ctx context.Context) error {
 	args := m.Called(ctx)
-	return args.Get(0).(*domain.ReadinessStatus), args.Error(1)
+	return args.Error(0)
 }
 
-func (m *MockHealthService) GetStatus(ctx context.Context) (*domain.ServiceStatus, error) {
+func (m *MockHealthService) GetServiceStatus(ctx context.Context) map[string]interface{} {
 	args := m.Called(ctx)
-	return args.Get(0).(*domain.ServiceStatus), args.Error(1)
+	return args.Get(0).(map[string]interface{})
 }
 
-func setupTestHandler() (*Handler, *MockBridgeService, *MockRoutingService, *MockEndpointService, *MockHealthService, *gin.Engine) {
+type MockOrchestrationService struct {
+	mock.Mock
+}
+
+func (m *MockOrchestrationService) ProcessParallelRequest(ctx context.Context, request *domain.Request, legacyEndpoint, modernEndpoint *domain.APIEndpoint) (*domain.APIComparison, error) {
+	args := m.Called(ctx, request, legacyEndpoint, modernEndpoint)
+	return args.Get(0).(*domain.APIComparison), args.Error(1)
+}
+
+func (m *MockOrchestrationService) GetOrchestrationRule(ctx context.Context, routingRuleID string) (*domain.OrchestrationRule, error) {
+	args := m.Called(ctx, routingRuleID)
+	return args.Get(0).(*domain.OrchestrationRule), args.Error(1)
+}
+
+func (m *MockOrchestrationService) CreateOrchestrationRule(ctx context.Context, rule *domain.OrchestrationRule) error {
+	args := m.Called(ctx, rule)
+	return args.Error(0)
+}
+
+func (m *MockOrchestrationService) UpdateOrchestrationRule(ctx context.Context, rule *domain.OrchestrationRule) error {
+	args := m.Called(ctx, rule)
+	return args.Error(0)
+}
+
+func (m *MockOrchestrationService) EvaluateTransition(ctx context.Context, rule *domain.OrchestrationRule) (bool, error) {
+	args := m.Called(ctx, rule)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockOrchestrationService) ExecuteTransition(ctx context.Context, rule *domain.OrchestrationRule, newMode domain.APIMode) error {
+	args := m.Called(ctx, rule, newMode)
+	return args.Error(0)
+}
+
+func setupTestHandler() (*Handler, *MockBridgeService, *MockRoutingService, *MockEndpointService, *MockHealthService, *MockOrchestrationService, *gin.Engine) {
 	// Create mock services
 	mockBridge := &MockBridgeService{}
-	mockRouting := &MockRoutingService{}
-	mockEndpoint := &MockEndpointService{}
 	mockHealth := &MockHealthService{}
+	mockEndpoint := &MockEndpointService{}
+	mockRouting := &MockRoutingService{}
+	mockOrchestration := &MockOrchestrationService{}
 
-	// Create logger and metrics
+	// Create logger
 	testLogger := logger.NewLogger()
-	testMetrics := metrics.NewMetrics()
 
 	// Create handler
 	handler := NewHandler(
 		mockBridge,
-		mockRouting,
-		mockEndpoint,
 		mockHealth,
+		mockEndpoint,
+		mockRouting,
+		mockOrchestration,
 		testLogger,
-		testMetrics,
 	)
 
 	// Setup Gin router
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	handler.RegisterRoutes(router)
 
-	return handler, mockBridge, mockRouting, mockEndpoint, mockHealth, router
+	// Register routes manually for testing
+	router.GET("/health", handler.HealthCheck)
+	router.GET("/ready", handler.ReadinessCheck)
+	router.GET("/api/v1/status", handler.Status)
+	router.Any("/api/v1/*path", handler.ProcessBridgeRequest)
+
+	// Endpoint CRUD routes
+	router.GET("/api/v1/endpoints", handler.ListEndpoints)
+	router.POST("/api/v1/endpoints", handler.CreateEndpoint)
+	router.GET("/api/v1/endpoints/:id", handler.GetEndpoint)
+	router.PUT("/api/v1/endpoints/:id", handler.UpdateEndpoint)
+	router.DELETE("/api/v1/endpoints/:id", handler.DeleteEndpoint)
+
+	// Routing rule CRUD routes
+	router.GET("/api/v1/routing-rules", handler.ListRoutingRules)
+	router.POST("/api/v1/routing-rules", handler.CreateRoutingRule)
+	router.GET("/api/v1/routing-rules/:id", handler.GetRoutingRule)
+	router.PUT("/api/v1/routing-rules/:id", handler.UpdateRoutingRule)
+	router.DELETE("/api/v1/routing-rules/:id", handler.DeleteRoutingRule)
+
+	return handler, mockBridge, mockRouting, mockEndpoint, mockHealth, mockOrchestration, router
 }
 
 func TestHealthCheck(t *testing.T) {
-	_, _, _, _, mockHealth, router := setupTestHandler()
+	_, _, _, _, mockHealth, _, router := setupTestHandler()
 
-	// Mock health check response
-	expectedStatus := &domain.HealthStatus{
-		Status:      "healthy",
-		ServiceName: "api-bridge",
-		Version:     "0.1.0",
-		Timestamp:   time.Now(),
-		Uptime:      "1h30m",
-	}
-
-	mockHealth.On("CheckHealth", mock.Anything).Return(expectedStatus, nil)
+	// Mock health check - CheckHealth returns error only
+	mockHealth.On("CheckHealth", mock.Anything).Return(nil)
 
 	// Create request
 	req, _ := http.NewRequest("GET", "/health", nil)
@@ -163,28 +211,20 @@ func TestHealthCheck(t *testing.T) {
 	// Assertions
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response HealthResponse
+	var response gin.H
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Equal(t, "healthy", response.Status)
-	assert.Equal(t, "api-bridge", response.Service)
-	assert.Equal(t, "0.1.0", response.Version)
+	assert.Equal(t, "healthy", response["status"])
+	assert.NotEmpty(t, response["timestamp"])
 
 	mockHealth.AssertExpectations(t)
 }
 
 func TestReadinessCheck(t *testing.T) {
-	_, _, _, _, mockHealth, router := setupTestHandler()
+	_, _, _, _, mockHealth, _, router := setupTestHandler()
 
-	// Mock readiness check response
-	expectedReadiness := &domain.ReadinessStatus{
-		Status:    "ready",
-		Ready:     true,
-		Checks:    map[string]string{"database": "ok", "cache": "ok"},
-		Timestamp: time.Now(),
-	}
-
-	mockHealth.On("CheckReadiness", mock.Anything).Return(expectedReadiness, nil)
+	// Mock readiness check - CheckReadiness returns error only
+	mockHealth.On("CheckReadiness", mock.Anything).Return(nil)
 
 	// Create request
 	req, _ := http.NewRequest("GET", "/ready", nil)
@@ -206,19 +246,18 @@ func TestReadinessCheck(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
-	_, _, _, _, mockHealth, router := setupTestHandler()
+	_, _, _, _, mockHealth, _, router := setupTestHandler()
 
-	// Mock status response
-	expectedStatus := &domain.ServiceStatus{
-		ServiceName: "api-bridge",
-		Version:     "0.1.0",
-		Timestamp:   time.Now(),
-		Uptime:      "1h30m",
-		Environment: "test",
-		Metrics:     map[string]interface{}{"requests": 100},
+	// Mock status response - GetServiceStatus returns map[string]interface{}
+	expectedStatus := map[string]interface{}{
+		"service":     "api-bridge",
+		"version":     "0.1.0",
+		"uptime":      "1h30m",
+		"environment": "test",
+		"metrics":     map[string]interface{}{"requests": 100},
 	}
 
-	mockHealth.On("GetStatus", mock.Anything).Return(expectedStatus, nil)
+	mockHealth.On("GetServiceStatus", mock.Anything).Return(expectedStatus)
 
 	// Create request
 	req, _ := http.NewRequest("GET", "/api/v1/status", nil)
@@ -230,17 +269,17 @@ func TestStatus(t *testing.T) {
 	// Assertions
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response StatusResponse
+	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Equal(t, "api-bridge", response.Service)
-	assert.Equal(t, "0.1.0", response.Version)
+	assert.Equal(t, "api-bridge", response["service"])
+	assert.Equal(t, "0.1.0", response["version"])
 
 	mockHealth.AssertExpectations(t)
 }
 
 func TestHandleAPIRequest(t *testing.T) {
-	_, mockBridge, _, _, _, router := setupTestHandler()
+	_, mockBridge, _, _, _, _, router := setupTestHandler()
 
 	// Mock bridge service response
 	expectedResponse := &domain.Response{
@@ -269,12 +308,12 @@ func TestHandleAPIRequest(t *testing.T) {
 }
 
 func TestListEndpoints(t *testing.T) {
-	_, _, _, mockEndpoint, _, router := setupTestHandler()
+	_, _, _, mockEndpoint, _, _, router := setupTestHandler()
 
 	// Mock endpoints response
-	expectedEndpoints := []*domain.Endpoint{
+	expectedEndpoints := []*domain.APIEndpoint{
 		{
-			ID:          1,
+			ID:          "test-endpoint-1",
 			Name:        "test-endpoint",
 			Description: "Test endpoint",
 			BaseURL:     "http://test.com",
@@ -282,7 +321,7 @@ func TestListEndpoints(t *testing.T) {
 		},
 	}
 
-	mockEndpoint.On("GetAllEndpoints", mock.Anything).Return(expectedEndpoints, nil)
+	mockEndpoint.On("ListEndpoints", mock.Anything).Return(expectedEndpoints, nil)
 
 	// Create request
 	req, _ := http.NewRequest("GET", "/api/v1/endpoints", nil)
@@ -304,18 +343,10 @@ func TestListEndpoints(t *testing.T) {
 }
 
 func TestCreateEndpoint(t *testing.T) {
-	_, _, _, mockEndpoint, _, router := setupTestHandler()
+	_, _, _, mockEndpoint, _, _, router := setupTestHandler()
 
-	// Mock create endpoint response
-	expectedEndpoint := &domain.Endpoint{
-		ID:          1,
-		Name:        "new-endpoint",
-		Description: "New endpoint",
-		BaseURL:     "http://new.com",
-		IsActive:    true,
-	}
-
-	mockEndpoint.On("CreateEndpoint", mock.Anything, mock.AnythingOfType("*domain.Endpoint")).Return(expectedEndpoint, nil)
+	// Mock create endpoint - CreateEndpoint now returns error only
+	mockEndpoint.On("CreateEndpoint", mock.Anything, mock.AnythingOfType("*domain.APIEndpoint")).Return(nil)
 
 	// Create request body
 	requestBody := CreateEndpointRequest{
@@ -345,12 +376,12 @@ func TestCreateEndpoint(t *testing.T) {
 }
 
 func TestListRoutingRules(t *testing.T) {
-	_, _, mockRouting, _, _, router := setupTestHandler()
+	_, _, mockRouting, _, _, _, router := setupTestHandler()
 
 	// Mock routing rules response
 	expectedRules := []*domain.RoutingRule{
 		{
-			ID:          1,
+			ID:          "test-rule-1",
 			Name:        "test-rule",
 			PathPattern: "/test/*",
 			Method:      "GET",
@@ -359,7 +390,7 @@ func TestListRoutingRules(t *testing.T) {
 		},
 	}
 
-	mockRouting.On("GetAllRoutingRules", mock.Anything).Return(expectedRules, nil)
+	mockRouting.On("ListRules", mock.Anything).Return(expectedRules, nil)
 
 	// Create request
 	req, _ := http.NewRequest("GET", "/api/v1/routing-rules", nil)
@@ -381,19 +412,10 @@ func TestListRoutingRules(t *testing.T) {
 }
 
 func TestCreateRoutingRule(t *testing.T) {
-	_, _, mockRouting, _, _, router := setupTestHandler()
+	_, _, mockRouting, _, _, _, router := setupTestHandler()
 
-	// Mock create routing rule response
-	expectedRule := &domain.RoutingRule{
-		ID:          1,
-		Name:        "new-rule",
-		PathPattern: "/new/*",
-		Method:      "GET",
-		Priority:    1,
-		IsActive:    true,
-	}
-
-	mockRouting.On("CreateRoutingRule", mock.Anything, mock.AnythingOfType("*domain.RoutingRule")).Return(expectedRule, nil)
+	// Mock create routing rule - CreateRule returns error only
+	mockRouting.On("CreateRule", mock.Anything, mock.AnythingOfType("*domain.RoutingRule")).Return(nil)
 
 	// Create request body
 	requestBody := CreateRoutingRuleRequest{
@@ -424,10 +446,10 @@ func TestCreateRoutingRule(t *testing.T) {
 }
 
 func TestHealthCheckFailure(t *testing.T) {
-	_, _, _, _, mockHealth, router := setupTestHandler()
+	_, _, _, _, mockHealth, _, router := setupTestHandler()
 
 	// Mock health check failure
-	mockHealth.On("CheckHealth", mock.Anything).Return((*domain.HealthStatus)(nil), assert.AnError)
+	mockHealth.On("CheckHealth", mock.Anything).Return(assert.AnError)
 
 	// Create request
 	req, _ := http.NewRequest("GET", "/health", nil)
@@ -449,7 +471,7 @@ func TestHealthCheckFailure(t *testing.T) {
 }
 
 func TestHandleAPIRequestError(t *testing.T) {
-	_, mockBridge, _, _, _, router := setupTestHandler()
+	_, mockBridge, _, _, _, _, router := setupTestHandler()
 
 	// Mock bridge service error
 	mockBridge.On("ProcessRequest", mock.Anything, mock.AnythingOfType("*domain.Request")).Return((*domain.Response)(nil), assert.AnError)
@@ -475,7 +497,7 @@ func TestHandleAPIRequestError(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkHandleAPIRequest(b *testing.B) {
-	_, mockBridge, _, _, _, router := setupTestHandler()
+	_, mockBridge, _, _, _, _, router := setupTestHandler()
 
 	// Mock bridge service response
 	expectedResponse := &domain.Response{
@@ -497,18 +519,10 @@ func BenchmarkHandleAPIRequest(b *testing.B) {
 }
 
 func BenchmarkHealthCheck(b *testing.B) {
-	_, _, _, _, mockHealth, router := setupTestHandler()
+	_, _, _, _, mockHealth, _, router := setupTestHandler()
 
-	// Mock health check response
-	expectedStatus := &domain.HealthStatus{
-		Status:      "healthy",
-		ServiceName: "api-bridge",
-		Version:     "0.1.0",
-		Timestamp:   time.Now(),
-		Uptime:      "1h30m",
-	}
-
-	mockHealth.On("CheckHealth", mock.Anything).Return(expectedStatus, nil)
+	// Mock health check - CheckHealth returns error only
+	mockHealth.On("CheckHealth", mock.Anything).Return(nil)
 
 	b.ResetTimer()
 

@@ -32,8 +32,8 @@ func TestCreateEndpointRequest_ToDomain(t *testing.T) {
 }
 
 func TestUpdateEndpointRequest_ApplyTo(t *testing.T) {
-	original := &domain.Endpoint{
-		ID:          1,
+	original := &domain.APIEndpoint{
+		ID:          "endpoint-1",
 		Name:        "original",
 		Description: "Original description",
 		BaseURL:     "http://original.com",
@@ -68,11 +68,11 @@ func TestCreateRoutingRuleRequest_ToDomain(t *testing.T) {
 		Priority:    10,
 		IsActive:    true,
 		LegacyEndpoint: &EndpointReference{
-			ID:   1,
+			ID:   "endpoint-1",
 			Name: "legacy",
 		},
 		ModernEndpoint: &EndpointReference{
-			ID:   2,
+			ID:   "endpoint-2",
 			Name: "modern",
 		},
 		Headers: map[string]string{
@@ -91,23 +91,23 @@ func TestCreateRoutingRuleRequest_ToDomain(t *testing.T) {
 	assert.Equal(t, "GET", rule.Method)
 	assert.Equal(t, 10, rule.Priority)
 	assert.True(t, rule.IsActive)
-	assert.Equal(t, int64(1), rule.LegacyEndpointID)
-	assert.Equal(t, int64(2), rule.ModernEndpointID)
+	assert.Equal(t, "endpoint-1", rule.LegacyEndpointID)
+	assert.Equal(t, "endpoint-2", rule.ModernEndpointID)
 	assert.Equal(t, "Bearer token", rule.Headers["Authorization"])
 	assert.Equal(t, "v1", rule.QueryParams["version"])
 }
 
 func TestUpdateRoutingRuleRequest_ApplyTo(t *testing.T) {
 	original := &domain.RoutingRule{
-		ID:               1,
+		ID:               "rule-1",
 		Name:             "original",
 		Description:      "Original description",
 		PathPattern:      "/original/*",
 		Method:           "POST",
 		Priority:         5,
 		IsActive:         false,
-		LegacyEndpointID: 1,
-		ModernEndpointID: 2,
+		LegacyEndpointID: "endpoint-1",
+		ModernEndpointID: "endpoint-2",
 		Headers: map[string]string{
 			"Content-Type": "application/json",
 		},
@@ -123,7 +123,7 @@ func TestUpdateRoutingRuleRequest_ApplyTo(t *testing.T) {
 		Priority:    intPtr(10),
 		IsActive:    boolPtr(true),
 		ModernEndpoint: &EndpointReference{
-			ID: 3,
+			ID: "endpoint-3",
 		},
 		Headers: map[string]string{
 			"Authorization": "Bearer new-token",
@@ -138,15 +138,15 @@ func TestUpdateRoutingRuleRequest_ApplyTo(t *testing.T) {
 	assert.Equal(t, "GET", original.Method)
 	assert.Equal(t, 10, original.Priority)
 	assert.True(t, original.IsActive)
-	assert.Equal(t, int64(1), original.LegacyEndpointID) // Unchanged
-	assert.Equal(t, int64(3), original.ModernEndpointID) // Updated
+	assert.Equal(t, "endpoint-1", original.LegacyEndpointID) // Unchanged
+	assert.Equal(t, "endpoint-3", original.ModernEndpointID) // Updated
 	assert.Equal(t, "Bearer new-token", original.Headers["Authorization"])
 	assert.Equal(t, "true", original.QueryParams["debug"]) // Unchanged
 }
 
 func TestEndpointResponse_FromDomain(t *testing.T) {
-	endpoint := &domain.Endpoint{
-		ID:          1,
+	endpoint := &domain.APIEndpoint{
+		ID:          "endpoint-1",
 		Name:        "test-endpoint",
 		Description: "Test endpoint",
 		BaseURL:     "http://test.com",
@@ -161,7 +161,7 @@ func TestEndpointResponse_FromDomain(t *testing.T) {
 	resp := &EndpointResponse{}
 	resp.FromDomain(endpoint)
 
-	assert.Equal(t, int64(1), resp.ID)
+	assert.Equal(t, "endpoint-1", resp.ID)
 	assert.Equal(t, "test-endpoint", resp.Name)
 	assert.Equal(t, "Test endpoint", resp.Description)
 	assert.Equal(t, "http://test.com", resp.BaseURL)
@@ -173,15 +173,15 @@ func TestEndpointResponse_FromDomain(t *testing.T) {
 
 func TestRoutingRuleResponse_FromDomain(t *testing.T) {
 	rule := &domain.RoutingRule{
-		ID:               1,
+		ID:               "rule-1",
 		Name:             "test-rule",
 		Description:      "Test routing rule",
 		PathPattern:      "/test/*",
 		Method:           "GET",
 		Priority:         10,
 		IsActive:         true,
-		LegacyEndpointID: 1,
-		ModernEndpointID: 2,
+		LegacyEndpointID: "endpoint-1",
+		ModernEndpointID: "endpoint-2",
 		Headers: map[string]string{
 			"Authorization": "Bearer token",
 		},
@@ -195,7 +195,7 @@ func TestRoutingRuleResponse_FromDomain(t *testing.T) {
 	resp := &RoutingRuleResponse{}
 	resp.FromDomain(rule)
 
-	assert.Equal(t, int64(1), resp.ID)
+	assert.Equal(t, "rule-1", resp.ID)
 	assert.Equal(t, "test-rule", resp.Name)
 	assert.Equal(t, "Test routing rule", resp.Description)
 	assert.Equal(t, "/test/*", resp.PathPattern)
@@ -204,13 +204,13 @@ func TestRoutingRuleResponse_FromDomain(t *testing.T) {
 	assert.True(t, resp.IsActive)
 	assert.Equal(t, "Bearer token", resp.Headers["Authorization"])
 	assert.Equal(t, "v1", resp.QueryParams["version"])
-	assert.Equal(t, int64(1), resp.LegacyEndpoint.ID)
-	assert.Equal(t, int64(2), resp.ModernEndpoint.ID)
+	assert.Equal(t, "endpoint-1", resp.LegacyEndpoint.ID)
+	assert.Equal(t, "endpoint-2", resp.ModernEndpoint.ID)
 }
 
 func TestToEndpointResponse(t *testing.T) {
-	endpoint := &domain.Endpoint{
-		ID:          1,
+	endpoint := &domain.APIEndpoint{
+		ID:          "endpoint-1",
 		Name:        "test-endpoint",
 		Description: "Test endpoint",
 		BaseURL:     "http://test.com",
@@ -223,7 +223,7 @@ func TestToEndpointResponse(t *testing.T) {
 
 	resp := ToEndpointResponse(endpoint)
 
-	assert.Equal(t, int64(1), resp.ID)
+	assert.Equal(t, "endpoint-1", resp.ID)
 	assert.Equal(t, "test-endpoint", resp.Name)
 	assert.Equal(t, "Test endpoint", resp.Description)
 	assert.Equal(t, "http://test.com", resp.BaseURL)
@@ -233,13 +233,13 @@ func TestToEndpointResponse(t *testing.T) {
 }
 
 func TestToEndpointResponseList(t *testing.T) {
-	endpoints := []*domain.Endpoint{
+	endpoints := []*domain.APIEndpoint{
 		{
-			ID:   1,
+			ID:   "endpoint-1",
 			Name: "endpoint-1",
 		},
 		{
-			ID:   2,
+			ID:   "endpoint-2",
 			Name: "endpoint-2",
 		},
 	}
@@ -253,32 +253,32 @@ func TestToEndpointResponseList(t *testing.T) {
 
 func TestToRoutingRuleResponse(t *testing.T) {
 	rule := &domain.RoutingRule{
-		ID:               1,
+		ID:               "rule-1",
 		Name:             "test-rule",
 		PathPattern:      "/test/*",
 		Method:           "GET",
-		LegacyEndpointID: 1,
-		ModernEndpointID: 2,
+		LegacyEndpointID: "endpoint-1",
+		ModernEndpointID: "endpoint-2",
 	}
 
 	resp := ToRoutingRuleResponse(rule)
 
-	assert.Equal(t, int64(1), resp.ID)
+	assert.Equal(t, "rule-1", resp.ID)
 	assert.Equal(t, "test-rule", resp.Name)
 	assert.Equal(t, "/test/*", resp.PathPattern)
 	assert.Equal(t, "GET", resp.Method)
-	assert.Equal(t, int64(1), resp.LegacyEndpoint.ID)
-	assert.Equal(t, int64(2), resp.ModernEndpoint.ID)
+	assert.Equal(t, "endpoint-1", resp.LegacyEndpoint.ID)
+	assert.Equal(t, "endpoint-2", resp.ModernEndpoint.ID)
 }
 
 func TestToRoutingRuleResponseList(t *testing.T) {
 	rules := []*domain.RoutingRule{
 		{
-			ID:   1,
+			ID:   "rule-1",
 			Name: "rule-1",
 		},
 		{
-			ID:   2,
+			ID:   "rule-2",
 			Name: "rule-2",
 		},
 	}
@@ -291,39 +291,27 @@ func TestToRoutingRuleResponseList(t *testing.T) {
 }
 
 func TestToHealthResponse(t *testing.T) {
-	status := &domain.HealthStatus{
-		Status:      "healthy",
-		ServiceName: "api-bridge",
-		Version:     "0.1.0",
-		Timestamp:   time.Now(),
-		Uptime:      "1h30m",
-	}
+	// HealthStatus is a string type alias, not a struct
+	status := domain.HEALTHY
 
 	resp := ToHealthResponse(status)
 
 	assert.Equal(t, "healthy", resp.Status)
 	assert.Equal(t, "api-bridge", resp.Service)
 	assert.Equal(t, "0.1.0", resp.Version)
-	assert.Equal(t, "1h30m", resp.Uptime)
+	assert.NotEmpty(t, resp.Timestamp)
 }
 
 func TestToReadinessResponse(t *testing.T) {
-	status := &domain.ReadinessStatus{
-		Status: "ready",
-		Ready:  true,
-		Checks: map[string]string{
-			"database": "ok",
-			"cache":    "ok",
-		},
-		Timestamp: time.Now(),
-	}
+	// ReadinessStatus is a string type alias, not a struct
+	status := domain.READY
 
 	response := ToReadinessResponse(status)
 
 	assert.Equal(t, "ready", response["status"])
 	assert.True(t, response["ready"].(bool))
-	assert.Equal(t, "ok", response["checks"].(map[string]string)["database"])
-	assert.Equal(t, "ok", response["checks"].(map[string]string)["cache"])
+	assert.NotNil(t, response["checks"])
+	assert.NotEmpty(t, response["timestamp"])
 }
 
 func TestToStatusResponse(t *testing.T) {
@@ -331,7 +319,7 @@ func TestToStatusResponse(t *testing.T) {
 		ServiceName: "api-bridge",
 		Version:     "0.1.0",
 		Timestamp:   time.Now(),
-		Uptime:      "1h30m",
+		Uptime:      90 * time.Minute, // 1h30m as time.Duration
 		Environment: "test",
 		Metrics: map[string]interface{}{
 			"requests": 100,
@@ -343,7 +331,7 @@ func TestToStatusResponse(t *testing.T) {
 
 	assert.Equal(t, "api-bridge", resp.Service)
 	assert.Equal(t, "0.1.0", resp.Version)
-	assert.Equal(t, "1h30m", resp.Uptime)
+	assert.Equal(t, "1h30m0s", resp.Uptime) // Duration.String() format
 	assert.Equal(t, "test", resp.Environment)
 	assert.Equal(t, 100, resp.Metrics["requests"])
 	assert.Equal(t, 5, resp.Metrics["errors"])
@@ -394,8 +382,8 @@ func BenchmarkCreateEndpointRequest_ToDomain(b *testing.B) {
 }
 
 func BenchmarkEndpointResponse_FromDomain(b *testing.B) {
-	endpoint := &domain.Endpoint{
-		ID:          1,
+	endpoint := &domain.APIEndpoint{
+		ID:          "endpoint-1",
 		Name:        "test-endpoint",
 		Description: "Test endpoint",
 		BaseURL:     "http://test.com",
@@ -417,10 +405,10 @@ func BenchmarkEndpointResponse_FromDomain(b *testing.B) {
 }
 
 func BenchmarkToEndpointResponseList(b *testing.B) {
-	endpoints := make([]*domain.Endpoint, 100)
+	endpoints := make([]*domain.APIEndpoint, 100)
 	for i := 0; i < 100; i++ {
-		endpoints[i] = &domain.Endpoint{
-			ID:          int64(i),
+		endpoints[i] = &domain.APIEndpoint{
+			ID:          "endpoint-" + string(rune('0'+i)),
 			Name:        "endpoint",
 			Description: "Test endpoint",
 			BaseURL:     "http://test.com",
