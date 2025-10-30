@@ -51,7 +51,7 @@ tags:
     description: 모니터링 메트릭
 
 paths:
-  /management/health:
+  /abs/health:
     get:
       tags:
         - Health
@@ -88,7 +88,7 @@ paths:
                 type: string
                 example: database connection failed
 
-  /management/ready:
+  /abs/ready:
     get:
       tags:
         - Health
@@ -123,7 +123,7 @@ paths:
               error:
                 type: string
 
-  /management/v1/status:
+  /abs/v1/status:
     get:
       tags:
         - Health
@@ -267,7 +267,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/endpoints:
+  /abs/v1/endpoints:
     get:
       tags:
         - Endpoints
@@ -325,7 +325,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/endpoints/{id}:
+  /abs/v1/endpoints/{id}:
     get:
       tags:
         - Endpoints
@@ -416,7 +416,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/routing-rules:
+  /abs/v1/routing-rules:
     get:
       tags:
         - Routing Rules
@@ -474,7 +474,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/routing-rules/{id}:
+  /abs/v1/routing-rules/{id}:
     get:
       tags:
         - Routing Rules
@@ -565,7 +565,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/orchestration-rules:
+  /abs/v1/orchestration-rules:
     post:
       tags:
         - Orchestration Rules
@@ -597,7 +597,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/orchestration-rules/{id}:
+  /abs/v1/orchestration-rules/{id}:
     get:
       tags:
         - Orchestration Rules
@@ -666,7 +666,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/orchestration-rules/{id}/evaluate-transition:
+  /abs/v1/orchestration-rules/{id}/evaluate-transition:
     get:
       tags:
         - Orchestration Rules
@@ -708,7 +708,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/orchestration-rules/{id}/execute-transition:
+  /abs/v1/orchestration-rules/{id}/execute-transition:
     post:
       tags:
         - Orchestration Rules
@@ -773,7 +773,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/v1/shutdown:
+  /abs/shutdown:
     post:
       tags:
         - System
@@ -802,7 +802,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
 
-  /management/metrics:
+  /abs/metrics:
     get:
       tags:
         - Metrics

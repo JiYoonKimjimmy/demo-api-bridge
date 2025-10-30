@@ -31,7 +31,7 @@ HTTP 요청 → 미들웨어 스택 → 핸들러 → Bridge Service → 라우�
 ### 요청 수신 프로세스
 
 모든 API 브리지 요청은 `/api/*path` 와일드카드 엔드포인트를 통해 수신됩니다.
-관리 API는 `/management/` prefix로 별도 분리되어 있습니다.
+관리 API는 `/abs/` prefix로 별도 분리되어 있습니다.
 
 ```go
 // internal/adapter/inbound/http/handler.go
@@ -75,7 +75,7 @@ router.Use(httpadapter.NewRateLimitMiddleware())         // Rate Limiting
 
 **Rate Limiting 설정**:
 - **제한**: 100 requests/second (버스트: 200)
-- **제외 경로**: `/debug/pprof/`, `/management/`, `/swagger/`, `/swagger-yaml/`
+- **제외 경로**: `/debug/pprof/`, `/abs/`, `/swagger/`, `/swagger-yaml/`
 
 ---
 
@@ -1088,11 +1088,11 @@ internal/
 | 용도 | 경로 | 설명 |
 |------|------|------|
 | **브리지 요청** | `/api/*path` | 레거시/모던 API로 프록시 (모든 /api/* 요청) |
-| **Health** | `/management/health` | 헬스 체크 |
-| **Readiness** | `/management/ready` | 준비 상태 |
-| **Status** | `/management/v1/status` | 상세 상태 |
-| **Metrics** | `/management/metrics` | Prometheus 메트릭 |
-| **CRUD APIs** | `/management/v1/*` | 관리용 CRUD API |
+| **Health** | `/abs/health` | 헬스 체크 |
+| **Readiness** | `/abs/ready` | 준비 상태 |
+| **Status** | `/abs/v1/status` | 상세 상태 |
+| **Metrics** | `/abs/metrics` | Prometheus 메트릭 |
+| **CRUD APIs** | `/abs/v1/*` | 관리용 CRUD API |
 | **Swagger** | `/swagger/*` | API 문서 |
 | **Debug/Profiling** | `/debug/pprof/*` | 성능 프로파일링 |
 

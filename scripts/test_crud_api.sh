@@ -3,7 +3,7 @@
 # API Bridge CRUD API 테스트 스크립트
 # 서버가 실행 중이어야 합니다 (포트 10019)
 
-BASE_URL="http://localhost:10019/management/v1"
+BASE_URL="http://localhost:10019/abs/v1"
 
 echo "🚀 API Bridge CRUD API 테스트 시작"
 echo "=================================="

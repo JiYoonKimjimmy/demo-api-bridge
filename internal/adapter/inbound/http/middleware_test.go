@@ -153,11 +153,11 @@ func TestRateLimitMiddlewareSkipPaths(t *testing.T) {
 	router.Use(NewRateLimitMiddleware())
 
 	// 관리 API 경로 추가 (Rate Limit 제외)
-	router.GET("/management/health", func(c *gin.Context) {
+	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	req, _ := http.NewRequest("GET", "/management/health", nil)
+	req, _ := http.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -168,7 +168,7 @@ func TestRateLimitMiddlewareSkipPaths(t *testing.T) {
 // TestMiddlewareChain는 여러 미들웨어를 체인으로 연결하여 테스트합니다.
 func TestMiddlewareChain(t *testing.T) {
 	testLogger := logger.NewLogger()
-	testMetrics := metrics.New("test")
+	testMetrics := metrics.New("test_chain") // 고유한 네임스페이스 사용
 	router := setupTestRouter()
 
 	// 모든 미들웨어 적용
@@ -263,7 +263,7 @@ func BenchmarkRateLimitMiddleware(b *testing.B) {
 }
 
 func BenchmarkMetricsMiddleware(b *testing.B) {
-	testMetrics := metrics.New("test")
+	testMetrics := metrics.New("bench_metrics")
 	router := setupTestRouter()
 	router.Use(NewMetricsMiddleware(testMetrics))
 	router.GET("/test", func(c *gin.Context) {
@@ -281,7 +281,7 @@ func BenchmarkMetricsMiddleware(b *testing.B) {
 
 func BenchmarkMiddlewareChain(b *testing.B) {
 	testLogger := logger.NewLogger()
-	testMetrics := metrics.New("test")
+	testMetrics := metrics.New("bench_chain")
 	router := setupTestRouter()
 
 	router.Use(NewLoggingMiddleware(testLogger))

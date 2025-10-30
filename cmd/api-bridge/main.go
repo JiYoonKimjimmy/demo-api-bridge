@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	configadapter "demo-api-bridge/internal/adapter/config"
 	httpadapter "demo-api-bridge/internal/adapter/inbound/http"
 	"demo-api-bridge/internal/adapter/outbound/cache"
 	"demo-api-bridge/internal/adapter/outbound/database"
@@ -190,9 +191,18 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 		log.Info("✅ Redis cache repository initialized")
 	}
 
+	// Endpoint Repository 초기화 (Config 기반 - 메모리에서 로드, DB 조회 불필요)
+	endpointRepo, err := configadapter.NewConfigEndpointRepository(&cfg.Endpoints)
+	if err != nil {
+		log.Warn(fmt.Sprintf("Failed to create config-based endpoint repository: %v", err))
+		log.Info("Falling back to Mock endpoint repository")
+		endpointRepo = database.NewMockEndpointRepository()
+	} else {
+		log.Info("✅ Config-based endpoint repository initialized (memory-based, no DB queries)")
+	}
+
 	// 데이터베이스 리포지토리 초기화 (OracleDB 또는 Mock)
 	var routingRepo port.RoutingRepository
-	var endpointRepo port.EndpointRepository
 	var orchestrationRepo port.OrchestrationRepository
 	var comparisonRepo port.ComparisonRepository
 
@@ -204,20 +214,11 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 
 		// Mock 리포지토리 사용
 		routingRepo = database.NewMockRoutingRepository()
-		endpointRepo = database.NewMockEndpointRepository()
 		orchestrationRepo = database.NewMockOrchestrationRepository()
 		comparisonRepo = database.NewMockComparisonRepository()
 	} else {
 		// OracleDB 리포지토리 사용
 		routingRepo = oracleRoutingRepo
-
-		oracleEndpointRepo, err := database.NewOracleEndpointRepository(&cfg.Database)
-		if err != nil {
-			log.Warn(fmt.Sprintf("Failed to create Oracle endpoint repository: %v", err))
-			endpointRepo = database.NewMockEndpointRepository()
-		} else {
-			endpointRepo = oracleEndpointRepo
-		}
 
 		// Orchestration Repository OracleDB 구현
 		oracleOrchestrationRepo, err := database.NewOracleOrchestrationRepository(&cfg.Database)
@@ -293,61 +294,55 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 
 // setupRoutes는 라우트를 설정합니다.
 func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
-	// Swagger YAML 파일 제공
-	router.Static("/swagger-yaml", "./api-docs")
+	// === Internal Management API (높은 우선순위 - 먼저 등록) ===
+	abs := router.Group("/abs")
+	{
+		// Swagger YAML 파일 제공
+		abs.Static("/swagger-yaml", "./api-docs")
 
-	// Swagger UI - swagger.yaml 파일 기반 (절대 URL 사용)
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
-		ginSwagger.URL("http://localhost:10019/swagger-yaml/swagger.yaml")))
+		// Swagger UI - swagger.yaml 파일 기반
+		abs.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
+			ginSwagger.URL("http://localhost:10019/abs/swagger-yaml/swagger.yaml")))
 
-	// pprof 프로파일링 엔드포인트 (디버그 전용)
-	// /debug/pprof/ - 프로파일링 인덱스
-	// /debug/pprof/cmdline - 커맨드라인
-	// /debug/pprof/profile - CPU 프로파일 (30초)
-	// /debug/pprof/symbol - 심볼 조회
-	// /debug/pprof/trace - 실행 트레이스
-	// /debug/pprof/heap - 힙 메모리 프로파일
-	// /debug/pprof/goroutine - 고루틴 프로파일
-	// /debug/pprof/threadcreate - 스레드 생성 프로파일
-	// /debug/pprof/block - 블록 프로파일
-	// /debug/pprof/mutex - 뮤텍스 프로파일
-	router.GET("/debug/pprof/*any", gin.WrapH(http.DefaultServeMux))
+		// pprof 프로파일링 엔드포인트 (디버그 전용)
+		abs.GET("/debug/pprof/*any", gin.WrapH(http.DefaultServeMux))
 
-	// === Management API ===
-	// Health Check & Monitoring
-	router.GET("/management/health", handler.HealthCheck)
-	router.GET("/management/ready", handler.ReadinessCheck)
-	router.GET("/management/metrics", handler.Metrics)
-	router.GET("/management/v1/status", handler.Status)
+		// Health Check & Monitoring
+		abs.GET("/health", handler.HealthCheck)
+		abs.GET("/ready", handler.ReadinessCheck)
+		abs.GET("/metrics", handler.Metrics)
+		abs.GET("/status", handler.Status)
 
-	// Graceful Shutdown
-	router.POST("/management/v1/shutdown", handler.GracefulShutdown)
+		// Graceful Shutdown
+		abs.POST("/shutdown", handler.GracefulShutdown)
 
-	// APIEndpoint CRUD
-	router.POST("/management/v1/endpoints", handler.CreateEndpoint)
-	router.GET("/management/v1/endpoints", handler.ListEndpoints)
-	router.GET("/management/v1/endpoints/:id", handler.GetEndpoint)
-	router.PUT("/management/v1/endpoints/:id", handler.UpdateEndpoint)
-	router.DELETE("/management/v1/endpoints/:id", handler.DeleteEndpoint)
+		// APIEndpoint CRUD
+		abs.POST("/v1/endpoints", handler.CreateEndpoint)
+		abs.GET("/v1/endpoints", handler.ListEndpoints)
+		abs.GET("/v1/endpoints/:id", handler.GetEndpoint)
+		abs.PUT("/v1/endpoints/:id", handler.UpdateEndpoint)
+		abs.DELETE("/v1/endpoints/:id", handler.DeleteEndpoint)
 
-	// RoutingRule CRUD
-	router.POST("/management/v1/routing-rules", handler.CreateRoutingRule)
-	router.GET("/management/v1/routing-rules", handler.ListRoutingRules)
-	router.GET("/management/v1/routing-rules/:id", handler.GetRoutingRule)
-	router.PUT("/management/v1/routing-rules/:id", handler.UpdateRoutingRule)
-	router.DELETE("/management/v1/routing-rules/:id", handler.DeleteRoutingRule)
+		// RoutingRule CRUD
+		abs.POST("/v1/routing-rules", handler.CreateRoutingRule)
+		abs.GET("/v1/routing-rules", handler.ListRoutingRules)
+		abs.GET("/v1/routing-rules/:id", handler.GetRoutingRule)
+		abs.PUT("/v1/routing-rules/:id", handler.UpdateRoutingRule)
+		abs.DELETE("/v1/routing-rules/:id", handler.DeleteRoutingRule)
 
-	// OrchestrationRule CRUD
-	router.POST("/management/v1/orchestration-rules", handler.CreateOrchestrationRule)
-	router.GET("/management/v1/orchestration-rules/:id", handler.GetOrchestrationRule)
-	router.PUT("/management/v1/orchestration-rules/:id", handler.UpdateOrchestrationRule)
+		// OrchestrationRule CRUD
+		abs.POST("/v1/orchestration-rules", handler.CreateOrchestrationRule)
+		abs.GET("/v1/orchestration-rules/:id", handler.GetOrchestrationRule)
+		abs.PUT("/v1/orchestration-rules/:id", handler.UpdateOrchestrationRule)
 
-	// OrchestrationRule 전환 관련
-	router.GET("/management/v1/orchestration-rules/:id/evaluate-transition", handler.EvaluateTransition)
-	router.POST("/management/v1/orchestration-rules/:id/execute-transition", handler.ExecuteTransition)
+		// OrchestrationRule 전환 관련
+		abs.GET("/v1/orchestration-rules/:id/evaluate-transition", handler.EvaluateTransition)
+		abs.POST("/v1/orchestration-rules/:id/execute-transition", handler.ExecuteTransition)
+	}
 
-	// === API Bridge - /api/* 요청 처리 (반드시 마지막에 등록!) ===
-	router.Any("/api/*path", handler.ProcessBridgeRequest)
+	// === API Bridge - 모든 외부 요청 처리 (반드시 마지막에 등록!) ===
+	// /abs/abs/* 를 제외한 모든 경로를 브릿지로 라우팅
+	router.NoRoute(handler.ProcessBridgeRequest)
 }
 
 // cleanup은 리소스를 정리합니다.

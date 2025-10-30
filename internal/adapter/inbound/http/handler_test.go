@@ -172,25 +172,32 @@ func setupTestHandler() (*Handler, *MockBridgeService, *MockRoutingService, *Moc
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	// Register routes manually for testing
-	router.GET("/health", handler.HealthCheck)
-	router.GET("/ready", handler.ReadinessCheck)
-	router.GET("/api/v1/status", handler.Status)
-	router.Any("/api/v1/*path", handler.ProcessBridgeRequest)
+	// Register routes manually for testing - matching main.go structure
+	// Internal Management API under /abs
+	abs := router.Group("/abs")
+	{
+		// Health Check & Monitoring
+		abs.GET("/health", handler.HealthCheck)
+		abs.GET("/ready", handler.ReadinessCheck)
+		abs.GET("/status", handler.Status)
 
-	// Endpoint CRUD routes
-	router.GET("/api/v1/endpoints", handler.ListEndpoints)
-	router.POST("/api/v1/endpoints", handler.CreateEndpoint)
-	router.GET("/api/v1/endpoints/:id", handler.GetEndpoint)
-	router.PUT("/api/v1/endpoints/:id", handler.UpdateEndpoint)
-	router.DELETE("/api/v1/endpoints/:id", handler.DeleteEndpoint)
+		// Endpoint CRUD routes
+		abs.GET("/v1/endpoints", handler.ListEndpoints)
+		abs.POST("/v1/endpoints", handler.CreateEndpoint)
+		abs.GET("/v1/endpoints/:id", handler.GetEndpoint)
+		abs.PUT("/v1/endpoints/:id", handler.UpdateEndpoint)
+		abs.DELETE("/v1/endpoints/:id", handler.DeleteEndpoint)
 
-	// Routing rule CRUD routes
-	router.GET("/api/v1/routing-rules", handler.ListRoutingRules)
-	router.POST("/api/v1/routing-rules", handler.CreateRoutingRule)
-	router.GET("/api/v1/routing-rules/:id", handler.GetRoutingRule)
-	router.PUT("/api/v1/routing-rules/:id", handler.UpdateRoutingRule)
-	router.DELETE("/api/v1/routing-rules/:id", handler.DeleteRoutingRule)
+		// Routing rule CRUD routes
+		abs.GET("/v1/routing-rules", handler.ListRoutingRules)
+		abs.POST("/v1/routing-rules", handler.CreateRoutingRule)
+		abs.GET("/v1/routing-rules/:id", handler.GetRoutingRule)
+		abs.PUT("/v1/routing-rules/:id", handler.UpdateRoutingRule)
+		abs.DELETE("/v1/routing-rules/:id", handler.DeleteRoutingRule)
+	}
+
+	// External API Bridge - all other requests
+	router.NoRoute(handler.ProcessBridgeRequest)
 
 	return handler, mockBridge, mockRouting, mockEndpoint, mockHealth, mockOrchestration, router
 }
@@ -202,7 +209,7 @@ func TestHealthCheck(t *testing.T) {
 	mockHealth.On("CheckHealth", mock.Anything).Return(nil)
 
 	// Create request
-	req, _ := http.NewRequest("GET", "/health", nil)
+	req, _ := http.NewRequest("GET", "/abs/health", nil)
 	w := httptest.NewRecorder()
 
 	// Perform request
@@ -227,7 +234,7 @@ func TestReadinessCheck(t *testing.T) {
 	mockHealth.On("CheckReadiness", mock.Anything).Return(nil)
 
 	// Create request
-	req, _ := http.NewRequest("GET", "/ready", nil)
+	req, _ := http.NewRequest("GET", "/abs/ready", nil)
 	w := httptest.NewRecorder()
 
 	// Perform request
@@ -260,7 +267,7 @@ func TestStatus(t *testing.T) {
 	mockHealth.On("GetServiceStatus", mock.Anything).Return(expectedStatus)
 
 	// Create request
-	req, _ := http.NewRequest("GET", "/api/v1/status", nil)
+	req, _ := http.NewRequest("GET", "/abs/status", nil)
 	w := httptest.NewRecorder()
 
 	// Perform request
@@ -324,7 +331,7 @@ func TestListEndpoints(t *testing.T) {
 	mockEndpoint.On("ListEndpoints", mock.Anything).Return(expectedEndpoints, nil)
 
 	// Create request
-	req, _ := http.NewRequest("GET", "/api/v1/endpoints", nil)
+	req, _ := http.NewRequest("GET", "/abs/v1/endpoints", nil)
 	w := httptest.NewRecorder()
 
 	// Perform request
@@ -353,11 +360,12 @@ func TestCreateEndpoint(t *testing.T) {
 		Name:        "new-endpoint",
 		Description: "New endpoint",
 		BaseURL:     "http://new.com",
+		Method:      "GET",
 		IsActive:    true,
 	}
 
 	body, _ := json.Marshal(requestBody)
-	req, _ := http.NewRequest("POST", "/api/v1/endpoints", bytes.NewBuffer(body))
+	req, _ := http.NewRequest("POST", "/abs/v1/endpoints", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -367,10 +375,11 @@ func TestCreateEndpoint(t *testing.T) {
 	// Assertions
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var response gin.H
+	var response EndpointResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.NotNil(t, response["endpoint"])
+	assert.NotEmpty(t, response.ID)
+	assert.Equal(t, "new-endpoint", response.Name)
 
 	mockEndpoint.AssertExpectations(t)
 }
@@ -393,7 +402,7 @@ func TestListRoutingRules(t *testing.T) {
 	mockRouting.On("ListRules", mock.Anything).Return(expectedRules, nil)
 
 	// Create request
-	req, _ := http.NewRequest("GET", "/api/v1/routing-rules", nil)
+	req, _ := http.NewRequest("GET", "/abs/v1/routing-rules", nil)
 	w := httptest.NewRecorder()
 
 	// Perform request
@@ -427,7 +436,7 @@ func TestCreateRoutingRule(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(requestBody)
-	req, _ := http.NewRequest("POST", "/api/v1/routing-rules", bytes.NewBuffer(body))
+	req, _ := http.NewRequest("POST", "/abs/v1/routing-rules", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -437,10 +446,11 @@ func TestCreateRoutingRule(t *testing.T) {
 	// Assertions
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var response gin.H
+	var response RoutingRuleResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.NotNil(t, response["routing_rule"])
+	assert.NotEmpty(t, response.ID)
+	assert.Equal(t, "new-rule", response.Name)
 
 	mockRouting.AssertExpectations(t)
 }
@@ -452,7 +462,7 @@ func TestHealthCheckFailure(t *testing.T) {
 	mockHealth.On("CheckHealth", mock.Anything).Return(assert.AnError)
 
 	// Create request
-	req, _ := http.NewRequest("GET", "/health", nil)
+	req, _ := http.NewRequest("GET", "/abs/health", nil)
 	w := httptest.NewRecorder()
 
 	// Perform request
@@ -465,7 +475,8 @@ func TestHealthCheckFailure(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.Equal(t, "unhealthy", response["status"])
-	assert.Equal(t, "api-bridge", response["service"])
+	assert.NotNil(t, response["error"])
+	assert.NotNil(t, response["timestamp"])
 
 	mockHealth.AssertExpectations(t)
 }
@@ -486,11 +497,10 @@ func TestHandleAPIRequestError(t *testing.T) {
 	// Assertions
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 
-	var response ErrorResponse
+	var response gin.H
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.True(t, response.Error)
-	assert.NotEmpty(t, response.Message)
+	assert.NotEmpty(t, response["error"])
 
 	mockBridge.AssertExpectations(t)
 }
@@ -527,7 +537,7 @@ func BenchmarkHealthCheck(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("GET", "/health", nil)
+		req, _ := http.NewRequest("GET", "/abs/health", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 	}

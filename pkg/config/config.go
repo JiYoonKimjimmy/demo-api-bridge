@@ -19,6 +19,7 @@ type Config struct {
 	CircuitBreaker CircuitBreakerConfig `yaml:"circuit_breaker"`
 	Metrics        MetricsConfig        `yaml:"metrics"`
 	Cache          CacheConfig          `yaml:"cache"`
+	Endpoints      EndpointsConfig      `yaml:"endpoints"`
 }
 
 // ServerConfig는 서버 관련 설정을 나타냅니다.
@@ -93,6 +94,33 @@ type CacheConfig struct {
 	DefaultTTL      time.Duration `yaml:"default_ttl"`
 	RoutingRulesTTL time.Duration `yaml:"routing_rules_ttl"`
 	APIResponseTTL  time.Duration `yaml:"api_response_ttl"`
+}
+
+// EndpointsConfig는 API 엔드포인트 설정을 나타냅니다.
+type EndpointsConfig struct {
+	Endpoints map[string]EndpointConfig `yaml:"endpoints"`
+}
+
+// EndpointConfig는 개별 엔드포인트 설정을 나타냅니다.
+type EndpointConfig struct {
+	ID          string        `yaml:"id"`
+	Name        string        `yaml:"name"`
+	Description string        `yaml:"description"`
+	BaseURL     string        `yaml:"base_url"`
+	HealthURL   string        `yaml:"health_url"`
+	IsActive    bool          `yaml:"is_active"`
+	Timeout     time.Duration `yaml:"timeout"`
+	RetryConfig RetryConfig   `yaml:"retry"`
+}
+
+// RetryConfig는 재시도 정책 설정을 나타냅니다.
+type RetryConfig struct {
+	MaxAttempts        int           `yaml:"max_attempts"`
+	InitialDelay       time.Duration `yaml:"initial_delay"`
+	MaxDelay           time.Duration `yaml:"max_delay"`
+	BackoffMultiplier  float64       `yaml:"backoff_multiplier"`
+	RetryableErrors    []string      `yaml:"retryable_errors"`
+	RetryableHTTPCodes []int         `yaml:"retryable_http_codes"`
 }
 
 // LoadConfig는 설정 파일을 로드합니다.
@@ -180,6 +208,42 @@ func getDefaultConfig() *Config {
 			DefaultTTL:      300 * time.Second,
 			RoutingRulesTTL: 3600 * time.Second,
 			APIResponseTTL:  600 * time.Second,
+		},
+		Endpoints: EndpointsConfig{
+			Endpoints: map[string]EndpointConfig{
+				"legacy-user-api": {
+					ID:          "legacy-user-api",
+					Name:        "Legacy User API",
+					Description: "Legacy user management API",
+					BaseURL:     "https://legacy.example.com",
+					HealthURL:   "/health",
+					IsActive:    true,
+					Timeout:     5 * time.Second,
+					RetryConfig: RetryConfig{
+						MaxAttempts:        3,
+						InitialDelay:       1 * time.Second,
+						MaxDelay:           10 * time.Second,
+						BackoffMultiplier:  2.0,
+						RetryableHTTPCodes: []int{500, 502, 503, 504},
+					},
+				},
+				"modern-user-api": {
+					ID:          "modern-user-api",
+					Name:        "Modern User API",
+					Description: "Modern user management API",
+					BaseURL:     "https://modern.example.com",
+					HealthURL:   "/actuator/health",
+					IsActive:    true,
+					Timeout:     3 * time.Second,
+					RetryConfig: RetryConfig{
+						MaxAttempts:        3,
+						InitialDelay:       500 * time.Millisecond,
+						MaxDelay:           5 * time.Second,
+						BackoffMultiplier:  2.0,
+						RetryableHTTPCodes: []int{500, 502, 503, 504},
+					},
+				},
+			},
 		},
 	}
 }

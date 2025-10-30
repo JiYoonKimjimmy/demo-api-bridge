@@ -123,7 +123,7 @@ swagger.yaml 파일에는 다음 API가 모두 문서화되어 있습니다:
 - POST /api/v1/orchestration-rules/{id}/execute-transition - 전환 실행
 
 ### System
-- POST /api/v1/shutdown - Graceful Shutdown
+- POST /api/shutdown - Graceful Shutdown
 - GET /metrics - Prometheus 메트릭
 
 ## 주의사항

@@ -17,8 +17,9 @@ const requestIDKey = "request_id"
 func NewLoggingMiddleware(log port.Logger) gin.HandlerFunc {
 	// 로깅에서 제외할 경로 패턴 정의
 	skipPaths := []string{
-		"/swagger/",
-		"/swagger-yaml/",
+		"/abs/swagger",      // Swagger UI
+		"/abs/swagger-yaml", // Swagger YAML
+		"/abs/debug/pprof",  // pprof 프로파일링
 		"/favicon.ico",
 	}
 
@@ -122,10 +123,7 @@ func NewRateLimitMiddleware() gin.HandlerFunc {
 	// Rate limit에서 제외할 경로 정의
 	// 관리 API, 모니터링, Swagger는 Rate Limit에서 제외
 	skipPaths := []string{
-		"/debug/pprof/",  // 프로파일링
-		"/management/",   // 관리 API (Health, CRUD, Metrics 등)
-		"/swagger/",      // Swagger UI
-		"/swagger-yaml/", // Swagger YAML 파일
+		"/abs/", // 관리 API (Health, CRUD, Metrics, Debug, Swagger 등)
 	}
 
 	return func(c *gin.Context) {
