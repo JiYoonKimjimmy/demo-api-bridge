@@ -4,5 +4,5 @@ GET http://localhost:10019/abs/health
 ### shutdown
 POST http://localhost:10019/abs/shutdown
 
-### brdige test
+### /mobile-platform-1.0/api/health
 GET http://localhost:10019/mobile-platform-1.0/api/health
