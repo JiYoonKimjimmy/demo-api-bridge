@@ -75,6 +75,8 @@ endpoints:
       base_url: http://dev3.konadc.com:10010
       health_url: /mobile-platform-1.0/api/health
       is_active: true
+      is_legacy: true
+      is_default: true  # 기본 레거시 엔드포인트로 지정
       timeout: 5s
       retry:
         max_attempts: 3
@@ -91,6 +93,8 @@ endpoints:
       base_url: http://dev3.konadc.com:10010  # TODO 추후 변경 예정
       health_url: /mobile-platform-1.0/api/health
       is_active: true
+      is_legacy: false
+      is_default: false
       timeout: 3s
       retry:
         max_attempts: 3

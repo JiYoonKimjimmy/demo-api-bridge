@@ -15,6 +15,8 @@ type APIEndpoint struct {
 	Timeout     time.Duration // 타임아웃
 	RetryCount  int           // 재시도 횟수
 	IsActive    bool          // 활성화 여부
+	IsLegacy    bool          // 레거시 API 여부
+	IsDefault   bool          // 기본 엔드포인트 여부
 	Priority    int           // 우선순위 (여러 엔드포인트가 있을 경우)
 	Description string        // 설명
 	CreatedAt   time.Time     // 생성 시간

@@ -58,6 +58,9 @@ func (m *cbMockMetrics) RecordExternalAPICall(url string, success bool, duration
 	m.Called(url, success, duration)
 }
 func (m *cbMockMetrics) RecordCacheHit(hit bool) { m.Called(hit) }
+func (m *cbMockMetrics) RecordDefaultRoutingUsed(method, path string) {
+	m.Called(method, path)
+}
 func (m *cbMockMetrics) IncrementCounter(name string, labels map[string]string) {
 	m.Called(name, labels)
 }

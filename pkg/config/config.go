@@ -109,6 +109,8 @@ type EndpointConfig struct {
 	BaseURL     string        `yaml:"base_url"`
 	HealthURL   string        `yaml:"health_url"`
 	IsActive    bool          `yaml:"is_active"`
+	IsLegacy    bool          `yaml:"is_legacy"`    // 레거시 API 여부
+	IsDefault   bool          `yaml:"is_default"`   // 기본 엔드포인트 여부
 	Timeout     time.Duration `yaml:"timeout"`
 	RetryConfig RetryConfig   `yaml:"retry"`
 }

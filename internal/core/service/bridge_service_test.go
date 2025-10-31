@@ -87,6 +87,14 @@ func (m *MockEndpointRepository) FindActive(ctx context.Context) ([]*domain.APIE
 	return args.Get(0).([]*domain.APIEndpoint), args.Error(1)
 }
 
+func (m *MockEndpointRepository) FindDefaultLegacyEndpoint(ctx context.Context) (*domain.APIEndpoint, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.APIEndpoint), args.Error(1)
+}
+
 type MockOrchestrationRepository struct {
 	mock.Mock
 }
@@ -297,6 +305,10 @@ func (m *MockMetricsCollector) RecordExternalAPICall(url string, success bool, d
 
 func (m *MockMetricsCollector) RecordCacheHit(hit bool) {
 	m.Called(hit)
+}
+
+func (m *MockMetricsCollector) RecordDefaultRoutingUsed(method, path string) {
+	m.Called(method, path)
 }
 
 func (m *MockMetricsCollector) IncrementCounter(name string, labels map[string]string) {

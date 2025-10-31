@@ -82,6 +82,8 @@ func convertToEndpoint(key string, cfg *config.EndpointConfig) (*domain.APIEndpo
 		BaseURL:     cfg.BaseURL,
 		HealthURL:   cfg.HealthURL,
 		IsActive:    cfg.IsActive,
+		IsLegacy:    cfg.IsLegacy,
+		IsDefault:   cfg.IsDefault,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -161,6 +163,45 @@ func (r *configEndpointRepository) FindActive(ctx context.Context) ([]*domain.AP
 	}
 
 	return endpoints, nil
+}
+
+// FindDefaultLegacyEndpoint : 기본 레거시 엔드포인트를 조회합니다.
+//
+// IsDefault=true이고 IsLegacy=true인 첫 번째 엔드포인트를 반환합니다.
+// 설정에 없으면 IsLegacy=true인 첫 번째 활성 엔드포인트를 반환합니다.
+//
+// Returns:
+//   - *domain.APIEndpoint: 기본 레거시 엔드포인트
+//   - error: 레거시 엔드포인트가 없는 경우
+func (r *configEndpointRepository) FindDefaultLegacyEndpoint(ctx context.Context) (*domain.APIEndpoint, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// 1차 우선순위: IsDefault=true && IsLegacy=true && IsActive=true
+	for _, ep := range r.endpoints {
+		if ep.IsDefault && ep.IsLegacy && ep.IsActive {
+			epCopy := *ep
+			return &epCopy, nil
+		}
+	}
+
+	// 2차 우선순위: IsLegacy=true && IsActive=true (첫 번째 발견)
+	for _, ep := range r.endpoints {
+		if ep.IsLegacy && ep.IsActive {
+			epCopy := *ep
+			return &epCopy, nil
+		}
+	}
+
+	// 3차 우선순위: IsActive=true (첫 번째 발견)
+	for _, ep := range r.endpoints {
+		if ep.IsActive {
+			epCopy := *ep
+			return &epCopy, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no default legacy endpoint found in configuration")
 }
 
 // Create : 설정 기반 저장소에서는 지원하지 않습니다.

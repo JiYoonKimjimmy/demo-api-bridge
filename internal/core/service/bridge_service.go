@@ -9,8 +9,16 @@ import (
 	"demo-api-bridge/internal/core/domain"
 	"demo-api-bridge/internal/core/port"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 )
+
+// routingRuleCacheEntry는 라우팅 규칙 캐시 엔트리입니다.
+type routingRuleCacheEntry struct {
+	rules     []*domain.RoutingRule
+	timestamp time.Time
+}
 
 // bridgeService
 // : BridgeService 인터페이스를 구현하는 핵심 서비스입니다.
@@ -35,6 +43,11 @@ type bridgeService struct {
 	cache             port.CacheRepository         // 캐시 저장소
 	logger            port.Logger                  // 로거
 	metrics           port.MetricsCollector        // 메트릭 수집기
+
+	// 라우팅 규칙 캐시
+	routingRuleCache    map[string]*routingRuleCacheEntry // 캐시 맵 (key: method:path)
+	routingRuleCacheMu  sync.RWMutex                      // 캐시 락
+	routingRuleCacheTTL time.Duration                     // 캐시 TTL (기본: 60초)
 }
 
 // NewBridgeService
@@ -68,15 +81,17 @@ func NewBridgeService(
 	metrics port.MetricsCollector,
 ) port.BridgeService {
 	return &bridgeService{
-		routingRepo:       routingRepo,
-		endpointRepo:      endpointRepo,
-		orchestrationRepo: orchestrationRepo,
-		comparisonRepo:    comparisonRepo,
-		orchestrationSvc:  orchestrationSvc,
-		externalAPI:       externalAPI,
-		cache:             cache,
-		logger:            logger,
-		metrics:           metrics,
+		routingRepo:         routingRepo,
+		endpointRepo:        endpointRepo,
+		orchestrationRepo:   orchestrationRepo,
+		comparisonRepo:      comparisonRepo,
+		orchestrationSvc:    orchestrationSvc,
+		externalAPI:         externalAPI,
+		cache:               cache,
+		logger:              logger,
+		metrics:             metrics,
+		routingRuleCache:    make(map[string]*routingRuleCacheEntry),
+		routingRuleCacheTTL: 60 * time.Second, // 60초 TTL
 	}
 }
 
@@ -144,17 +159,88 @@ func (s *bridgeService) ProcessRequest(ctx context.Context, request *domain.Requ
 
 // GetRoutingRule
 // : 요청에 매칭되는 라우팅 규칙을 조회합니다.
+//
+// 이 메서드는 다음 순서로 라우팅 규칙을 찾습니다:
+//  1. 인메모리 캐시에서 조회 (TTL 기반)
+//  2. 캐시 미스 시 DB에서 조회 후 캐시에 저장
+//  3. 매칭되는 규칙이 없으면 기본 레거시 엔드포인트로 fallback
+//
+// Parameters:
+//   - ctx: 요청 컨텍스트
+//   - request: 처리할 요청 객체
+//
+// Returns:
+//   - *domain.RoutingRule: 매칭된 라우팅 규칙 (또는 기본 규칙)
+//   - error: 조회 중 발생한 에러
 func (s *bridgeService) GetRoutingRule(ctx context.Context, request *domain.Request) (*domain.RoutingRule, error) {
+	cacheKey := s.generateRoutingCacheKey(request)
+
+	// 1. 캐시에서 조회
+	s.routingRuleCacheMu.RLock()
+	if entry, exists := s.routingRuleCache[cacheKey]; exists {
+		// TTL 체크
+		if time.Since(entry.timestamp) < s.routingRuleCacheTTL {
+			s.routingRuleCacheMu.RUnlock()
+
+			// 캐시된 규칙이 있으면 우선순위 기반 선택
+			if len(entry.rules) > 0 {
+				return s.selectHighestPriorityRule(entry.rules), nil
+			}
+
+			// 캐시에 규칙이 없으면 기본 레거시 엔드포인트로 fallback
+			s.logger.WithContext(ctx).Info("no cached routing rules, using default legacy endpoint",
+				"request", fmt.Sprintf("%s %s", request.Method, request.Path),
+			)
+			s.metrics.RecordDefaultRoutingUsed(request.Method, request.Path)
+			return s.createDefaultRoutingRule(ctx, request)
+		}
+	}
+	s.routingRuleCacheMu.RUnlock()
+
+	// 2. DB에서 조회
 	rules, err := s.routingRepo.FindMatchingRules(ctx, request)
 	if err != nil {
-		return nil, err
+		// 에러 메시지의 개행/탭 문자를 공백으로 치환하여 한 줄로 출력
+		errorMsg := strings.ReplaceAll(err.Error(), "\n", " ")
+		errorMsg = strings.ReplaceAll(errorMsg, "\t", " ")
+		errorMsg = strings.TrimSpace(errorMsg)
+
+		s.logger.WithContext(ctx).Warn("DB query failed, using default legacy endpoint",
+			"error", errorMsg,
+			"request", fmt.Sprintf("%s %s", request.Method, request.Path),
+		)
+		// DB 조회 실패 시에도 기본 레거시 엔드포인트로 fallback
+		s.metrics.RecordDefaultRoutingUsed(request.Method, request.Path)
+		return s.createDefaultRoutingRule(ctx, request)
 	}
 
+	// 3. 캐시에 저장 (규칙이 없어도 저장하여 반복 DB 조회 방지)
+	s.routingRuleCacheMu.Lock()
+	s.routingRuleCache[cacheKey] = &routingRuleCacheEntry{
+		rules:     rules,
+		timestamp: time.Now(),
+	}
+	s.routingRuleCacheMu.Unlock()
+
+	// 4. 매칭된 규칙이 있으면 반환
+	if len(rules) > 0 {
+		return s.selectHighestPriorityRule(rules), nil
+	}
+
+	// 5. 매칭된 규칙이 없으면 기본 레거시 엔드포인트로 fallback
+	s.logger.WithContext(ctx).Info("no matching routing rules, using default legacy endpoint",
+		"request", fmt.Sprintf("%s %s", request.Method, request.Path),
+	)
+	s.metrics.RecordDefaultRoutingUsed(request.Method, request.Path)
+	return s.createDefaultRoutingRule(ctx, request)
+}
+
+// selectHighestPriorityRule은 우선순위가 가장 높은 (숫자가 낮은) 규칙을 선택합니다.
+func (s *bridgeService) selectHighestPriorityRule(rules []*domain.RoutingRule) *domain.RoutingRule {
 	if len(rules) == 0 {
-		return nil, domain.ErrRouteNotFound
+		return nil
 	}
 
-	// 우선순위가 가장 높은 (숫자가 낮은) 규칙 선택
 	selectedRule := rules[0]
 	for _, rule := range rules {
 		if rule.Priority < selectedRule.Priority {
@@ -162,7 +248,37 @@ func (s *bridgeService) GetRoutingRule(ctx context.Context, request *domain.Requ
 		}
 	}
 
-	return selectedRule, nil
+	return selectedRule
+}
+
+// createDefaultRoutingRule은 기본 레거시 엔드포인트를 사용하는 라우팅 규칙을 생성합니다.
+func (s *bridgeService) createDefaultRoutingRule(ctx context.Context, request *domain.Request) (*domain.RoutingRule, error) {
+	// 기본 레거시 엔드포인트 조회
+	defaultEndpoint, err := s.endpointRepo.FindDefaultLegacyEndpoint(ctx)
+	if err != nil {
+		s.logger.WithContext(ctx).Error("failed to find default legacy endpoint", "error", err)
+		return nil, fmt.Errorf("no routing rule found and failed to get default endpoint: %w", err)
+	}
+
+	// 동적으로 라우팅 규칙 생성
+	defaultRule := &domain.RoutingRule{
+		ID:           "default-legacy-route",
+		Name:         "Default Legacy Route",
+		PathPattern:  request.Path,
+		Method:       request.Method,
+		EndpointID:   defaultEndpoint.ID,
+		Priority:     9999, // 가장 낮은 우선순위
+		IsActive:     true,
+		CacheEnabled: false,
+		Description:  "Auto-generated default routing rule for legacy endpoint",
+	}
+
+	return defaultRule, nil
+}
+
+// generateRoutingCacheKey는 라우팅 캐시 키를 생성합니다.
+func (s *bridgeService) generateRoutingCacheKey(request *domain.Request) string {
+	return fmt.Sprintf("routing:%s:%s", request.Method, request.Path)
 }
 
 // GetEndpoint

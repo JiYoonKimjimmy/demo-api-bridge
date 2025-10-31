@@ -605,6 +605,23 @@ func (r *oracleEndpointRepository) FindActive(ctx context.Context) ([]*domain.AP
 	return endpoints, nil
 }
 
+// FindDefaultLegacyEndpoint는 기본 레거시 엔드포인트를 조회합니다.
+// Note: Oracle DB 구현체에서는 is_legacy, is_default 컬럼이 없을 수 있으므로
+// 첫 번째 활성 엔드포인트를 반환합니다. 실제 운영환경에서는 config 기반 저장소를 사용하세요.
+func (r *oracleEndpointRepository) FindDefaultLegacyEndpoint(ctx context.Context) (*domain.APIEndpoint, error) {
+	// 활성화된 첫 번째 엔드포인트 조회
+	endpoints, err := r.FindActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(endpoints) == 0 {
+		return nil, fmt.Errorf("no default legacy endpoint found")
+	}
+
+	return endpoints[0], nil
+}
+
 // Close는 데이터베이스 연결을 닫습니다.
 func (r *oracleEndpointRepository) Close() error {
 	if r.db != nil {
