@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// orchestrationService는 레거시/모던 API의 병렬 호출 및 응답 비교를 담당하는 서비스입니다.
+// orchestrationService : 레거시/모던 API의 병렬 호출 및 응답 비교를 담당하는 서비스입니다.
 //
 // 이 서비스는 다음의 핵심 기능을 제공합니다:
 //   - 고루틴 기반 병렬 API 호출: 레거시와 모던 API를 동시에 호출하여 지연시간 최소화
@@ -28,7 +28,7 @@ type orchestrationService struct {
 	metrics           port.MetricsCollector        // 메트릭 수집기
 }
 
-// NewOrchestrationService는 새로운 OrchestrationService를 생성합니다.
+// NewOrchestrationService : 새로운 OrchestrationService를 생성합니다.
 func NewOrchestrationService(
 	orchestrationRepo port.OrchestrationRepository,
 	comparisonRepo port.ComparisonRepository,
@@ -45,7 +45,7 @@ func NewOrchestrationService(
 	}
 }
 
-// ProcessParallelRequest는 레거시와 모던 API를 병렬로 호출하고 결과를 비교합니다.
+// ProcessParallelRequest : 레거시와 모던 API를 병렬로 호출하고 결과를 비교합니다.
 //
 // 이 메서드는 고루틴을 사용하여 두 API를 동시에 호출하고, 먼저 완료되는 것을 기다리지 않고
 // 두 응답을 모두 수집한 후 JSON Diff 알고리즘으로 비교합니다.
@@ -194,22 +194,30 @@ func (s *orchestrationService) ProcessParallelRequest(
 		// 하나의 API만 성공한 경우
 		if legacyResponse != nil {
 			comparison.MatchRate = 0.0 // 모던 API 실패
+			modernErrMsg := "Modern API returned no response"
+			if modernErr != nil {
+				modernErrMsg = modernErr.Error()
+			}
 			comparison.Differences = []domain.ResponseDiff{
 				{
 					Type:        domain.EXTRA,
 					Path:        "modern_response",
 					Message:     "Modern API call failed",
-					ModernValue: modernErr.Error(),
+					ModernValue: modernErrMsg,
 				},
 			}
 		} else {
 			comparison.MatchRate = 0.0 // 레거시 API 실패
+			legacyErrMsg := "Legacy API returned no response"
+			if legacyErr != nil {
+				legacyErrMsg = legacyErr.Error()
+			}
 			comparison.Differences = []domain.ResponseDiff{
 				{
 					Type:        domain.MISSING,
 					Path:        "legacy_response",
 					Message:     "Legacy API call failed",
-					LegacyValue: legacyErr.Error(),
+					LegacyValue: legacyErrMsg,
 				},
 			}
 		}
@@ -229,7 +237,7 @@ func (s *orchestrationService) ProcessParallelRequest(
 	return comparison, nil
 }
 
-// GetOrchestrationRule은 오케스트레이션 규칙을 조회합니다.
+// GetOrchestrationRule : 오케스트레이션 규칙을 조회합니다.
 func (s *orchestrationService) GetOrchestrationRule(ctx context.Context, routingRuleID string) (*domain.OrchestrationRule, error) {
 	rule, err := s.orchestrationRepo.FindByRoutingRuleID(ctx, routingRuleID)
 	if err != nil {
@@ -240,7 +248,7 @@ func (s *orchestrationService) GetOrchestrationRule(ctx context.Context, routing
 	return rule, nil
 }
 
-// CreateOrchestrationRule은 새로운 오케스트레이션 규칙을 생성합니다.
+// CreateOrchestrationRule : 새로운 오케스트레이션 규칙을 생성합니다.
 func (s *orchestrationService) CreateOrchestrationRule(ctx context.Context, rule *domain.OrchestrationRule) error {
 	s.logger.WithContext(ctx).Info("creating orchestration rule", "rule_id", rule.ID, "name", rule.Name)
 
@@ -262,7 +270,7 @@ func (s *orchestrationService) CreateOrchestrationRule(ctx context.Context, rule
 	return nil
 }
 
-// UpdateOrchestrationRule은 오케스트레이션 규칙을 수정합니다.
+// UpdateOrchestrationRule : 오케스트레이션 규칙을 수정합니다.
 func (s *orchestrationService) UpdateOrchestrationRule(ctx context.Context, rule *domain.OrchestrationRule) error {
 	s.logger.WithContext(ctx).Info("updating orchestration rule", "rule_id", rule.ID)
 
@@ -284,7 +292,7 @@ func (s *orchestrationService) UpdateOrchestrationRule(ctx context.Context, rule
 	return nil
 }
 
-// EvaluateTransition는 전환 가능성을 평가합니다.
+// EvaluateTransition : 전환 가능성을 평가합니다.
 func (s *orchestrationService) EvaluateTransition(ctx context.Context, rule *domain.OrchestrationRule) (bool, error) {
 	if !rule.TransitionConfig.AutoTransitionEnabled {
 		return false, nil
@@ -326,7 +334,7 @@ func (s *orchestrationService) EvaluateTransition(ctx context.Context, rule *dom
 	return canTransition, nil
 }
 
-// ExecuteTransition는 API 모드를 전환합니다.
+// ExecuteTransition : API 모드를 전환합니다.
 func (s *orchestrationService) ExecuteTransition(ctx context.Context, rule *domain.OrchestrationRule, newMode domain.APIMode) error {
 	s.logger.WithContext(ctx).Info("executing API mode transition",
 		"rule_id", rule.ID,
