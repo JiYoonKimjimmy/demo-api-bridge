@@ -204,6 +204,37 @@ func (r *configEndpointRepository) FindDefaultLegacyEndpoint(ctx context.Context
 	return nil, fmt.Errorf("no default legacy endpoint found in configuration")
 }
 
+// FindDefaultModernEndpoint : 기본 모던 엔드포인트를 조회합니다.
+//
+// IsDefault=true이고 IsLegacy=false인 첫 번째 엔드포인트를 반환합니다.
+// 설정에 없으면 IsLegacy=false인 첫 번째 활성 엔드포인트를 반환합니다.
+//
+// Returns:
+//   - *domain.APIEndpoint: 기본 모던 엔드포인트
+//   - error: 모던 엔드포인트가 없는 경우
+func (r *configEndpointRepository) FindDefaultModernEndpoint(ctx context.Context) (*domain.APIEndpoint, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// 1차 우선순위: IsDefault=true && IsLegacy=false && IsActive=true
+	for _, ep := range r.endpoints {
+		if ep.IsDefault && !ep.IsLegacy && ep.IsActive {
+			epCopy := *ep
+			return &epCopy, nil
+		}
+	}
+
+	// 2차 우선순위: IsLegacy=false && IsActive=true (첫 번째 발견)
+	for _, ep := range r.endpoints {
+		if !ep.IsLegacy && ep.IsActive {
+			epCopy := *ep
+			return &epCopy, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no default modern endpoint found in configuration")
+}
+
 // Create : 설정 기반 저장소에서는 지원하지 않습니다.
 //
 // Config 파일로 관리되므로 런타임 생성은 불가능합니다.

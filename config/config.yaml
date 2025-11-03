@@ -94,7 +94,7 @@ endpoints:
       health_url: /mobile-platform-1.0/api/health
       is_active: true
       is_legacy: false
-      is_default: false
+      is_default: true  # 기본 모던 엔드포인트로 지정
       timeout: 3s
       retry:
         max_attempts: 3

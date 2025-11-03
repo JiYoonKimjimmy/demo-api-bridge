@@ -47,3 +47,48 @@ metrics:
   port: 9090
   path: /metrics
 
+# 캐시 설정
+cache:
+  default_ttl: 300s  # 5분
+  routing_rules_ttl: 3600s  # 1시간
+  api_response_ttl: 600s  # 10분
+
+# API 엔드포인트 설정 (메모리 기반, DB 조회 불필요)
+endpoints:
+  endpoints:
+    # Legacy API 엔드포인트
+    legacy-api:
+      id: legacy-api
+      name: Legacy API
+      description: Legacy API Information
+      base_url: http://localhost:8080
+      health_url: /health
+      is_active: true
+      is_legacy: true
+      is_default: true  # 기본 레거시 엔드포인트로 지정
+      timeout: 5s
+      retry:
+        max_attempts: 3
+        initial_delay: 1s
+        max_delay: 10s
+        backoff_multiplier: 2.0
+        retryable_http_codes: [500, 502, 503, 504]
+
+    # Modern API 엔드포인트
+    modern-api:
+      id: modern-api
+      name: Modern API
+      description: Modern API Information
+      base_url: http://localhost:8081
+      health_url: /actuator/health
+      is_active: true
+      is_legacy: false
+      is_default: true  # 기본 모던 엔드포인트로 지정
+      timeout: 3s
+      retry:
+        max_attempts: 3
+        initial_delay: 500ms
+        max_delay: 5s
+        backoff_multiplier: 2.0
+        retryable_http_codes: [500, 502, 503, 504]
+

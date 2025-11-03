@@ -95,6 +95,14 @@ func (m *MockEndpointRepository) FindDefaultLegacyEndpoint(ctx context.Context) 
 	return args.Get(0).(*domain.APIEndpoint), args.Error(1)
 }
 
+func (m *MockEndpointRepository) FindDefaultModernEndpoint(ctx context.Context) (*domain.APIEndpoint, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.APIEndpoint), args.Error(1)
+}
+
 type MockOrchestrationRepository struct {
 	mock.Mock
 }
@@ -308,6 +316,10 @@ func (m *MockMetricsCollector) RecordCacheHit(hit bool) {
 }
 
 func (m *MockMetricsCollector) RecordDefaultRoutingUsed(method, path string) {
+	m.Called(method, path)
+}
+
+func (m *MockMetricsCollector) RecordDefaultOrchestrationUsed(method, path string) {
 	m.Called(method, path)
 }
 
@@ -1029,7 +1041,7 @@ func TestHelperFunctions(t *testing.T) {
 
 	// Test generateRoutingCacheKey
 	routingKey := service.generateRoutingCacheKey(request)
-	assert.Equal(t, "routing:GET:/api/users", routingKey)
+	assert.Equal(t, "abs:routing:GET:/api/users", routingKey)
 
 	// Test selectHighestPriorityRule
 	rules := []*domain.RoutingRule{

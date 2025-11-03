@@ -149,6 +149,21 @@ func (s *bridgeService) ProcessRequest(ctx context.Context, request *domain.Requ
 	// 3. 오케스트레이션 규칙 확인
 	orchestrationRule, err := s.orchestrationRepo.FindByRoutingRuleID(ctx, rule.ID)
 	if err != nil {
+		// 기본 라우팅 규칙인 경우, 기본 오케스트레이션 규칙 생성 시도
+		if rule.ID == "default-legacy-route" {
+			defaultOrchRule, createErr := s.createDefaultOrchestrationRule(ctx, request, rule)
+			if createErr == nil {
+				s.logger.WithContext(ctx).Info("using default orchestration for unmatched route",
+					"request", fmt.Sprintf("%s %s", request.Method, request.Path),
+				)
+				s.metrics.RecordDefaultOrchestrationUsed(request.Method, request.Path)
+				return s.processOrchestratedRequest(ctx, request, rule, defaultOrchRule, start)
+			}
+			s.logger.WithContext(ctx).Warn("failed to create default orchestration, falling back to single API",
+				"error", createErr,
+			)
+		}
+
 		// 오케스트레이션 규칙이 없으면 단일 API 호출
 		return s.processSingleAPIRequest(ctx, request, rule, start)
 	}
@@ -276,9 +291,79 @@ func (s *bridgeService) createDefaultRoutingRule(ctx context.Context, request *d
 	return defaultRule, nil
 }
 
+// createDefaultOrchestrationRule은 기본 오케스트레이션 규칙을 생성합니다.
+//
+// 라우팅 규칙이 없는 경우, 레거시와 모던 엔드포인트를 모두 사용하는
+// 기본 오케스트레이션 규칙을 동적으로 생성합니다.
+//
+// Parameters:
+//   - ctx: 요청 컨텍스트
+//   - request: 처리할 요청 객체
+//   - defaultRoutingRule: 기본 라우팅 규칙
+//
+// Returns:
+//   - *domain.OrchestrationRule: 동적으로 생성된 오케스트레이션 규칙
+//   - error: 모던 엔드포인트 조회 실패 시
+func (s *bridgeService) createDefaultOrchestrationRule(
+	ctx context.Context,
+	request *domain.Request,
+	defaultRoutingRule *domain.RoutingRule,
+) (*domain.OrchestrationRule, error) {
+	// 1. 기본 레거시 엔드포인트 조회
+	defaultLegacyEndpoint, err := s.endpointRepo.FindDefaultLegacyEndpoint(ctx)
+	if err != nil {
+		s.logger.WithContext(ctx).Error("failed to find default legacy endpoint for orchestration", "error", err)
+		return nil, fmt.Errorf("no default legacy endpoint for orchestration: %w", err)
+	}
+
+	// 2. 기본 모던 엔드포인트 조회
+	defaultModernEndpoint, err := s.endpointRepo.FindDefaultModernEndpoint(ctx)
+	if err != nil {
+		s.logger.WithContext(ctx).Warn("failed to find default modern endpoint, cannot use orchestration", "error", err)
+		return nil, fmt.Errorf("no default modern endpoint for orchestration: %w", err)
+	}
+
+	// 3. 동적 오케스트레이션 규칙 생성
+	now := time.Now()
+	defaultOrchRule := &domain.OrchestrationRule{
+		ID:               "default-orchestration-rule",
+		Name:             "Default Parallel Orchestration",
+		RoutingRuleID:    defaultRoutingRule.ID,
+		LegacyEndpointID: defaultLegacyEndpoint.ID,
+		ModernEndpointID: defaultModernEndpoint.ID,
+		CurrentMode:      domain.PARALLEL,
+		TransitionConfig: domain.TransitionConfig{
+			AutoTransitionEnabled:    true,
+			MatchRateThreshold:       0.95, // 95% 일치 시 전환
+			StabilityPeriod:          24 * time.Hour,
+			MinRequestsForTransition: 100,
+			RollbackThreshold:        0.90, // 90% 미만 시 롤백
+		},
+		ComparisonConfig: domain.ComparisonConfig{
+			Enabled:               true,
+			IgnoreFields:          []string{"timestamp", "requestId"},
+			AllowableDifference:   0.01, // 1% 허용 오차
+			StrictMode:            false,
+			SaveComparisonHistory: true,
+		},
+		IsActive:    true,
+		Description: "Auto-generated default orchestration for unmatched routes",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	s.logger.WithContext(ctx).Info("created default orchestration rule",
+		"legacy_endpoint", defaultLegacyEndpoint.ID,
+		"modern_endpoint", defaultModernEndpoint.ID,
+		"mode", defaultOrchRule.CurrentMode,
+	)
+
+	return defaultOrchRule, nil
+}
+
 // generateRoutingCacheKey는 라우팅 캐시 키를 생성합니다.
 func (s *bridgeService) generateRoutingCacheKey(request *domain.Request) string {
-	return fmt.Sprintf("routing:%s:%s", request.Method, request.Path)
+	return fmt.Sprintf("abs:routing:%s:%s", request.Method, request.Path)
 }
 
 // GetEndpoint
@@ -431,7 +516,7 @@ func (s *bridgeService) processModernOnlyRequest(ctx context.Context, request *d
 	return response, nil
 }
 
-// processParallelRequest는 레거시와 모던 API를 병렬로 호출합니다.
+// processParallelRequest : 레거시와 모던 API를 병렬로 호출합니다.
 func (s *bridgeService) processParallelRequest(ctx context.Context, request *domain.Request, rule *domain.OrchestrationRule, start time.Time) (*domain.Response, error) {
 	// 엔드포인트 조회
 	legacyEndpoint, err := s.GetEndpoint(ctx, rule.LegacyEndpointID)

@@ -245,6 +245,30 @@ func (m *mockEndpointRepository) FindDefaultLegacyEndpoint(ctx context.Context) 
 	return nil, fmt.Errorf("no default legacy endpoint found")
 }
 
+// FindDefaultModernEndpoint는 기본 모던 엔드포인트를 조회합니다.
+func (m *mockEndpointRepository) FindDefaultModernEndpoint(ctx context.Context) (*domain.APIEndpoint, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	// 1차 우선순위: IsDefault=true && IsLegacy=false && IsActive=true
+	for _, endpoint := range m.endpoints {
+		if endpoint.IsDefault && !endpoint.IsLegacy && endpoint.IsActive {
+			endpointCopy := *endpoint
+			return &endpointCopy, nil
+		}
+	}
+
+	// 2차 우선순위: IsLegacy=false && IsActive=true (첫 번째 발견)
+	for _, endpoint := range m.endpoints {
+		if !endpoint.IsLegacy && endpoint.IsActive {
+			endpointCopy := *endpoint
+			return &endpointCopy, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no default modern endpoint found")
+}
+
 // mockCacheRepository는 메모리 기반 CacheRepository 구현체입니다.
 type mockCacheRepository struct {
 	data  map[string]cacheEntry

@@ -61,6 +61,9 @@ func (m *cbMockMetrics) RecordCacheHit(hit bool) { m.Called(hit) }
 func (m *cbMockMetrics) RecordDefaultRoutingUsed(method, path string) {
 	m.Called(method, path)
 }
+func (m *cbMockMetrics) RecordDefaultOrchestrationUsed(method, path string) {
+	m.Called(method, path)
+}
 func (m *cbMockMetrics) IncrementCounter(name string, labels map[string]string) {
 	m.Called(name, labels)
 }

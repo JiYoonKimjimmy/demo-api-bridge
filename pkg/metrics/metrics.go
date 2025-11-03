@@ -26,7 +26,8 @@ type prometheusMetrics struct {
 	cacheMissesTotal prometheus.Counter
 
 	// 라우팅 메트릭
-	defaultRoutingUsedTotal *prometheus.CounterVec
+	defaultRoutingUsedTotal        *prometheus.CounterVec
+	defaultOrchestrationUsedTotal  *prometheus.CounterVec
 
 	// 일반 메트릭
 	counters   map[string]*prometheus.CounterVec
@@ -110,6 +111,15 @@ func New(namespace string) port.MetricsCollector {
 		[]string{"method", "path"},
 	)
 
+	m.defaultOrchestrationUsedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "default_orchestration_used_total",
+			Help:      "Total number of times default orchestration was used (parallel call for unmatched routes)",
+		},
+		[]string{"method", "path"},
+	)
+
 	return m
 }
 
@@ -156,6 +166,11 @@ func (m *prometheusMetrics) RecordCacheHit(hit bool) {
 // RecordDefaultRoutingUsed는 기본 라우팅 사용 메트릭을 기록합니다.
 func (m *prometheusMetrics) RecordDefaultRoutingUsed(method, path string) {
 	m.defaultRoutingUsedTotal.WithLabelValues(method, path).Inc()
+}
+
+// RecordDefaultOrchestrationUsed는 기본 오케스트레이션 사용 메트릭을 기록합니다.
+func (m *prometheusMetrics) RecordDefaultOrchestrationUsed(method, path string) {
+	m.defaultOrchestrationUsedTotal.WithLabelValues(method, path).Inc()
 }
 
 // IncrementCounter는 카운터를 증가시킵니다.
@@ -261,6 +276,7 @@ func (m *NoOpMetrics) RecordRequest(method, path string, statusCode int, duratio
 func (m *NoOpMetrics) RecordExternalAPICall(endpoint string, success bool, duration time.Duration) {}
 func (m *NoOpMetrics) RecordCacheHit(hit bool)                                                     {}
 func (m *NoOpMetrics) RecordDefaultRoutingUsed(method, path string)                                {}
+func (m *NoOpMetrics) RecordDefaultOrchestrationUsed(method, path string)                          {}
 func (m *NoOpMetrics) IncrementCounter(name string, labels map[string]string)                      {}
 func (m *NoOpMetrics) RecordGauge(name string, value float64, labels map[string]string)            {}
 func (m *NoOpMetrics) RecordHistogram(name string, value float64, labels map[string]string)        {}

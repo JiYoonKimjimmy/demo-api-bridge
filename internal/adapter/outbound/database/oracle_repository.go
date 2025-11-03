@@ -622,6 +622,25 @@ func (r *oracleEndpointRepository) FindDefaultLegacyEndpoint(ctx context.Context
 	return endpoints[0], nil
 }
 
+// FindDefaultModernEndpoint는 기본 모던 엔드포인트를 조회합니다.
+// Note: Oracle DB 구현체에서는 is_legacy, is_default 컬럼이 없을 수 있으므로
+// 활성화된 엔드포인트 중 두 번째를 반환합니다 (첫 번째는 레거시로 간주).
+// 실제 운영환경에서는 config 기반 저장소를 사용하세요.
+func (r *oracleEndpointRepository) FindDefaultModernEndpoint(ctx context.Context) (*domain.APIEndpoint, error) {
+	// 활성화된 엔드포인트 조회
+	endpoints, err := r.FindActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 최소 2개 이상의 엔드포인트가 있어야 모던 엔드포인트를 반환 가능
+	if len(endpoints) < 2 {
+		return nil, fmt.Errorf("no default modern endpoint found (need at least 2 active endpoints)")
+	}
+
+	return endpoints[1], nil
+}
+
 // Close는 데이터베이스 연결을 닫습니다.
 func (r *oracleEndpointRepository) Close() error {
 	if r.db != nil {

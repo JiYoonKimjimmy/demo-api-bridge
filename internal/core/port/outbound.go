@@ -80,6 +80,9 @@ type EndpointRepository interface {
 
 	// FindDefaultLegacyEndpoint는 기본 레거시 엔드포인트를 조회합니다.
 	FindDefaultLegacyEndpoint(ctx context.Context) (*domain.APIEndpoint, error)
+
+	// FindDefaultModernEndpoint는 기본 모던 엔드포인트를 조회합니다.
+	FindDefaultModernEndpoint(ctx context.Context) (*domain.APIEndpoint, error)
 }
 
 // Logger는 로깅을 담당하는 아웃바운드 포트입니다.
@@ -118,6 +121,9 @@ type MetricsCollector interface {
 
 	// RecordDefaultRoutingUsed는 기본 라우팅 사용 메트릭을 기록합니다.
 	RecordDefaultRoutingUsed(method, path string)
+
+	// RecordDefaultOrchestrationUsed는 기본 오케스트레이션 사용 메트릭을 기록합니다.
+	RecordDefaultOrchestrationUsed(method, path string)
 
 	// IncrementCounter는 카운터를 증가시킵니다.
 	IncrementCounter(name string, labels map[string]string)
