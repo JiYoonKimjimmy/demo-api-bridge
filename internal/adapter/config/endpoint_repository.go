@@ -81,6 +81,8 @@ func convertToEndpoint(key string, cfg *config.EndpointConfig) (*domain.APIEndpo
 		Description: cfg.Description,
 		BaseURL:     cfg.BaseURL,
 		HealthURL:   cfg.HealthURL,
+		Timeout:     cfg.Timeout,     // Timeout 추가
+		RetryCount:  cfg.RetryConfig.MaxAttempts - 1, // MaxAttempts는 초기 시도 포함이므로 -1
 		IsActive:    cfg.IsActive,
 		IsLegacy:    cfg.IsLegacy,
 		IsDefault:   cfg.IsDefault,

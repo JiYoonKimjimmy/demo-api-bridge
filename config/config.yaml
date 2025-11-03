@@ -25,7 +25,8 @@ database:
   conn_max_lifetime: 5m
   connection_timeout: 10s
 
-# Redis Cache 설정 (외부 접근 가능한 Redis 서버)
+# Redis Cache 설정 (외부 접근 가능한 Redis 서버) - DEPRECATED
+# 현재는 Ristretto 로컬 캐시를 사용합니다.
 redis:
   host: dev3.konadc.com
   port: 6379
@@ -58,11 +59,16 @@ metrics:
   port: 9090
   path: /metrics
 
-# 캐시 설정
+# 캐시 설정 (Ristretto 로컬 캐시)
 cache:
-  default_ttl: 300s  # 5분
-  routing_rules_ttl: 3600s  # 1시간
-  api_response_ttl: 600s  # 10분
+  type: local               # local (ristretto), redis, mock
+  max_size_mb: 1024         # 1GB 최대 메모리
+  num_counters: 10000000    # 10M counters (추정 항목 수의 10배)
+  buffer_items: 64          # Get 버퍼 크기
+  metrics_enabled: true     # Ristretto 메트릭 활성화
+  default_ttl: 300s         # 기본 TTL: 5분
+  routing_rules_ttl: 3600s  # 라우팅 규칙 TTL: 1시간
+  api_response_ttl: 600s    # API 응답 TTL: 10분
 
 # API 엔드포인트 설정 (메모리 기반, DB 조회 불필요)
 endpoints:

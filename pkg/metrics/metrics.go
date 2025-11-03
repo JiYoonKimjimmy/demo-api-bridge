@@ -2,7 +2,9 @@ package metrics
 
 import (
 	"demo-api-bridge/internal/core/port"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,6 +35,9 @@ type prometheusMetrics struct {
 	counters   map[string]*prometheus.CounterVec
 	gauges     map[string]*prometheus.GaugeVec
 	histograms map[string]*prometheus.HistogramVec
+
+	// 동시성 제어
+	mu sync.RWMutex
 }
 
 // New는 새로운 Prometheus MetricsCollector를 생성합니다.
@@ -178,26 +183,46 @@ func (m *prometheusMetrics) IncrementCounter(name string, labels map[string]stri
 	// namespace를 포함한 고유 이름 생성
 	fullName := m.namespace + "_" + name
 
+	// Read lock으로 먼저 확인
+	m.mu.RLock()
 	counter, exists := m.counters[fullName]
-	if !exists {
-		labelNames := make([]string, 0, len(labels))
-		for k := range labels {
-			labelNames = append(labelNames, k)
-		}
+	m.mu.RUnlock()
 
-		counter = promauto.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: fullName,
-				Help: name,
-			},
-			labelNames,
-		)
-		m.counters[fullName] = counter
+	if !exists {
+		// Write lock으로 생성
+		m.mu.Lock()
+		// Double-check (다른 고루틴이 생성했을 수 있음)
+		counter, exists = m.counters[fullName]
+		if !exists {
+			// Label 이름을 정렬하여 순서 보장
+			labelNames := make([]string, 0, len(labels))
+			for k := range labels {
+				labelNames = append(labelNames, k)
+			}
+			sort.Strings(labelNames)
+
+			counter = promauto.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: fullName,
+					Help: name,
+				},
+				labelNames,
+			)
+			m.counters[fullName] = counter
+		}
+		m.mu.Unlock()
 	}
 
+	// Label 값을 정렬된 순서로 추출
+	labelNames := make([]string, 0, len(labels))
+	for k := range labels {
+		labelNames = append(labelNames, k)
+	}
+	sort.Strings(labelNames)
+
 	labelValues := make([]string, 0, len(labels))
-	for _, v := range labels {
-		labelValues = append(labelValues, v)
+	for _, k := range labelNames {
+		labelValues = append(labelValues, labels[k])
 	}
 
 	counter.WithLabelValues(labelValues...).Inc()
@@ -208,26 +233,46 @@ func (m *prometheusMetrics) RecordGauge(name string, value float64, labels map[s
 	// namespace를 포함한 고유 이름 생성
 	fullName := m.namespace + "_" + name
 
+	// Read lock으로 먼저 확인
+	m.mu.RLock()
 	gauge, exists := m.gauges[fullName]
-	if !exists {
-		labelNames := make([]string, 0, len(labels))
-		for k := range labels {
-			labelNames = append(labelNames, k)
-		}
+	m.mu.RUnlock()
 
-		gauge = promauto.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: fullName,
-				Help: name,
-			},
-			labelNames,
-		)
-		m.gauges[fullName] = gauge
+	if !exists {
+		// Write lock으로 생성
+		m.mu.Lock()
+		// Double-check
+		gauge, exists = m.gauges[fullName]
+		if !exists {
+			// Label 이름을 정렬하여 순서 보장
+			labelNames := make([]string, 0, len(labels))
+			for k := range labels {
+				labelNames = append(labelNames, k)
+			}
+			sort.Strings(labelNames)
+
+			gauge = promauto.NewGaugeVec(
+				prometheus.GaugeOpts{
+					Name: fullName,
+					Help: name,
+				},
+				labelNames,
+			)
+			m.gauges[fullName] = gauge
+		}
+		m.mu.Unlock()
 	}
 
+	// Label 값을 정렬된 순서로 추출
+	labelNames := make([]string, 0, len(labels))
+	for k := range labels {
+		labelNames = append(labelNames, k)
+	}
+	sort.Strings(labelNames)
+
 	labelValues := make([]string, 0, len(labels))
-	for _, v := range labels {
-		labelValues = append(labelValues, v)
+	for _, k := range labelNames {
+		labelValues = append(labelValues, labels[k])
 	}
 
 	gauge.WithLabelValues(labelValues...).Set(value)
@@ -238,27 +283,47 @@ func (m *prometheusMetrics) RecordHistogram(name string, value float64, labels m
 	// namespace를 포함한 고유 이름 생성
 	fullName := m.namespace + "_" + name
 
+	// Read lock으로 먼저 확인
+	m.mu.RLock()
 	histogram, exists := m.histograms[fullName]
-	if !exists {
-		labelNames := make([]string, 0, len(labels))
-		for k := range labels {
-			labelNames = append(labelNames, k)
-		}
+	m.mu.RUnlock()
 
-		histogram = promauto.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Name:    fullName,
-				Help:    name,
-				Buckets: prometheus.DefBuckets,
-			},
-			labelNames,
-		)
-		m.histograms[fullName] = histogram
+	if !exists {
+		// Write lock으로 생성
+		m.mu.Lock()
+		// Double-check
+		histogram, exists = m.histograms[fullName]
+		if !exists {
+			// Label 이름을 정렬하여 순서 보장
+			labelNames := make([]string, 0, len(labels))
+			for k := range labels {
+				labelNames = append(labelNames, k)
+			}
+			sort.Strings(labelNames)
+
+			histogram = promauto.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Name:    fullName,
+					Help:    name,
+					Buckets: prometheus.DefBuckets,
+				},
+				labelNames,
+			)
+			m.histograms[fullName] = histogram
+		}
+		m.mu.Unlock()
 	}
 
+	// Label 값을 정렬된 순서로 추출
+	labelNames := make([]string, 0, len(labels))
+	for k := range labels {
+		labelNames = append(labelNames, k)
+	}
+	sort.Strings(labelNames)
+
 	labelValues := make([]string, 0, len(labels))
-	for _, v := range labels {
-		labelValues = append(labelValues, v)
+	for _, k := range labelNames {
+		labelValues = append(labelValues, labels[k])
 	}
 
 	histogram.WithLabelValues(labelValues...).Observe(value)

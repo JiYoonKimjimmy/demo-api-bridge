@@ -91,9 +91,14 @@ type MetricsConfig struct {
 
 // CacheConfig는 캐시 관련 설정을 나타냅니다.
 type CacheConfig struct {
-	DefaultTTL      time.Duration `yaml:"default_ttl"`
-	RoutingRulesTTL time.Duration `yaml:"routing_rules_ttl"`
-	APIResponseTTL  time.Duration `yaml:"api_response_ttl"`
+	Type            string        `yaml:"type"`              // "local" (ristretto), "redis", "mock"
+	MaxSizeMB       int64         `yaml:"max_size_mb"`       // Ristretto 최대 메모리 (MB)
+	NumCounters     int64         `yaml:"num_counters"`      // Ristretto 카운터 수
+	BufferItems     int64         `yaml:"buffer_items"`      // Ristretto 버퍼 크기
+	MetricsEnabled  bool          `yaml:"metrics_enabled"`   // Ristretto 메트릭 활성화
+	DefaultTTL      time.Duration `yaml:"default_ttl"`       // 기본 TTL
+	RoutingRulesTTL time.Duration `yaml:"routing_rules_ttl"` // 라우팅 규칙 TTL
+	APIResponseTTL  time.Duration `yaml:"api_response_ttl"`  // API 응답 TTL
 }
 
 // EndpointsConfig는 API 엔드포인트 설정을 나타냅니다.
@@ -207,9 +212,14 @@ func getDefaultConfig() *Config {
 			Path:    "/metrics",
 		},
 		Cache: CacheConfig{
-			DefaultTTL:      300 * time.Second,
-			RoutingRulesTTL: 3600 * time.Second,
-			APIResponseTTL:  600 * time.Second,
+			Type:            "local", // Ristretto 로컬 캐시
+			MaxSizeMB:       1024,    // 1GB
+			NumCounters:     10000000, // 10M counters
+			BufferItems:     64,
+			MetricsEnabled:  true,
+			DefaultTTL:      300 * time.Second,  // 5분
+			RoutingRulesTTL: 3600 * time.Second, // 1시간
+			APIResponseTTL:  600 * time.Second,  // 10분
 		},
 		Endpoints: EndpointsConfig{
 			Endpoints: map[string]EndpointConfig{

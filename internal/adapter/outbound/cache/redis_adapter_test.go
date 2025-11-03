@@ -42,11 +42,15 @@ func TestRedisAdapter_Integration(t *testing.T) {
 		DB:   1, // 테스트용 DB
 	})
 
+	// Redis 연결 확인
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		t.Skipf("Redis instance not available: %v", err)
+	}
+
 	adapter := NewRedisAdapterWithClient(client)
-
-	ctx := context.Background()
-
-	// Redis 연결 테스트는 NewRedisAdapter에서 자동으로 수행됨
 
 	// 기본 CRUD 테스트
 	key := "test_key"
@@ -88,5 +92,6 @@ func TestRedisAdapter_Integration(t *testing.T) {
 		t.Error("Expected error after delete")
 	}
 
-	// Cleanup (Redis adapter doesn't need explicit close)
+	// Cleanup
+	client.Close()
 }

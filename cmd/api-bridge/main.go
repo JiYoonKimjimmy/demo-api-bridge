@@ -161,34 +161,77 @@ func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 	// 메트릭 초기화
 	metricsCollector := metrics.NewMetricsCollector()
 
-	// Redis 클라이언트 초기화
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:         cfg.Redis.GetRedisAddr(),
-		Password:     cfg.Redis.Password,
-		DB:           cfg.Redis.DB,
-		PoolSize:     cfg.Redis.PoolSize,
-		MinIdleConns: cfg.Redis.MinIdleConns,
-		DialTimeout:  cfg.Redis.DialTimeout,
-		ReadTimeout:  cfg.Redis.ReadTimeout,
-		WriteTimeout: cfg.Redis.WriteTimeout,
-	})
-
-	// Redis 연결 테스트
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		log.Warn(fmt.Sprintf("Failed to connect to Redis: %v", err))
-		log.Info("Using Mock cache repository instead")
-	}
-
-	// 캐시 리포지토리 초기화 (Redis 또는 Mock)
+	// 캐시 리포지토리 초기화
 	var cacheRepo port.CacheRepository
-	if err := redisClient.Ping(ctx).Err(); err != nil {
+	var redisClient *redis.Client // 호환성을 위해 유지 (향후 제거 가능)
+
+	switch cfg.Cache.Type {
+	case "local", "ristretto":
+		// Ristretto 로컬 캐시 초기화
+		ristrettoConfig := &cache.RistrettoConfig{
+			MaxSizeMB:      cfg.Cache.MaxSizeMB,
+			NumCounters:    cfg.Cache.NumCounters,
+			BufferItems:    cfg.Cache.BufferItems,
+			MetricsEnabled: cfg.Cache.MetricsEnabled,
+		}
+		var err error
+		cacheRepo, err = cache.NewRistrettoAdapter(ristrettoConfig)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Failed to create Ristretto cache: %v", err))
+			log.Info("Using Mock cache repository instead")
+			cacheRepo = cache.NewMockCacheRepository()
+		} else {
+			log.Info("✅ Ristretto local cache initialized (1GB max memory)")
+		}
+
+	case "redis":
+		// Redis 클라이언트 초기화 (레거시 지원)
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:         cfg.Redis.GetRedisAddr(),
+			Password:     cfg.Redis.Password,
+			DB:           cfg.Redis.DB,
+			PoolSize:     cfg.Redis.PoolSize,
+			MinIdleConns: cfg.Redis.MinIdleConns,
+			DialTimeout:  cfg.Redis.DialTimeout,
+			ReadTimeout:  cfg.Redis.ReadTimeout,
+			WriteTimeout: cfg.Redis.WriteTimeout,
+		})
+
+		// Redis 연결 테스트
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			log.Warn(fmt.Sprintf("Failed to connect to Redis: %v", err))
+			log.Info("Using Mock cache repository instead")
+			cacheRepo = cache.NewMockCacheRepository()
+		} else {
+			cacheRepo = cache.NewRedisAdapterWithClient(redisClient)
+			log.Info("✅ Redis cache repository initialized")
+		}
+
+	case "mock":
+		// Mock 캐시 (테스트 또는 캐시 비활성화)
 		cacheRepo = cache.NewMockCacheRepository()
-	} else {
-		cacheRepo = cache.NewRedisAdapterWithClient(redisClient)
-		log.Info("✅ Redis cache repository initialized")
+		log.Info("✅ Mock cache repository initialized")
+
+	default:
+		// 기본값: Ristretto 로컬 캐시
+		log.Warn(fmt.Sprintf("Unknown cache type '%s', using Ristretto as default", cfg.Cache.Type))
+		ristrettoConfig := &cache.RistrettoConfig{
+			MaxSizeMB:      1024,
+			NumCounters:    10000000,
+			BufferItems:    64,
+			MetricsEnabled: true,
+		}
+		var err error
+		cacheRepo, err = cache.NewRistrettoAdapter(ristrettoConfig)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Failed to create Ristretto cache: %v", err))
+			cacheRepo = cache.NewMockCacheRepository()
+		} else {
+			log.Info("✅ Ristretto local cache initialized (default)")
+		}
 	}
 
 	// Endpoint Repository 초기화 (Config 기반 - 메모리에서 로드, DB 조회 불필요)
@@ -347,7 +390,17 @@ func setupRoutes(router *gin.Engine, handler *httpadapter.Handler) {
 
 // cleanup은 리소스를 정리합니다.
 func cleanup(deps *Dependencies) {
-	// Redis 클라이언트 정리
+	// 캐시 리포지토리 정리 (Ristretto의 경우 Close 호출 필요)
+	// ristrettoAdapter가 아닌 인터페이스를 통한 Close 메서드 확인
+	type cacheCloser interface {
+		Close()
+	}
+	if closer, ok := deps.Cache.(cacheCloser); ok {
+		closer.Close()
+		fmt.Println("✅ Cache repository closed")
+	}
+
+	// Redis 클라이언트 정리 (레거시 지원)
 	if deps.RedisClient != nil {
 		if err := deps.RedisClient.Close(); err != nil {
 			fmt.Printf("Failed to close Redis client: %v\n", err)

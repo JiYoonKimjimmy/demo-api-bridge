@@ -281,7 +281,8 @@ func convertPatternToRegex(pattern string) string {
 ```
 
 **라우팅 메커니즘 요약:**
-1. **3-tier 캐시 전략**: 메모리 캐시(60초 TTL) → Redis 캐시 → OracleDB
+1. **2-tier 캐시 전략**: 메모리 캐시(60초 TTL, 인메모리) → OracleDB
+   - **변경사항**: Redis 제거, Ristretto 로컬 캐시만 사용
 2. **정규식 기반 매칭**: Radix Tree 대신 `regexp.Compile()` 사용
 3. **우선순위 기반 선택**: 여러 규칙이 매칭되면 Priority 낮은(높은 우선순위) 것 선택
 4. **컴파일 캐싱**: 정규식 객체를 RoutingRule 내부에 캐싱하여 성능 최적화
@@ -1163,43 +1164,66 @@ ABS_API_ENDPOINTS (1) ─────┬───── (N) ABS_ROUTING_RULES
 3. **JSON 저장**: `transition_config`, `comparison_config`, `differences` → CLOB 타입
 4. **외래키 관계**: Cascade 삭제 지원
 
-### Redis 데이터 구조
+### Ristretto 로컬 캐시 구조 (Redis 대체)
+
+**변경사항**: Redis에서 Ristretto 로컬 인메모리 캐시로 전환되었습니다.
 
 ```go
 package cache
 
-// Cache Keys
-type CacheKeys struct {
-    Mapping      string // "mapping:{client_path}"
-    MatchRate    string // "matchrate:{mapping_id}"
-    CircuitState string // "circuit:{service}:{endpoint}"
+// RistrettoConfig는 Ristretto 캐시 설정입니다.
+type RistrettoConfig struct {
+    MaxSizeMB      int64 // 최대 메모리 (MB): 1024 (1GB)
+    NumCounters    int64 // 카운터 수: 10M (추정 항목의 10배)
+    BufferItems    int64 // 버퍼 크기: 64
+    MetricsEnabled bool  // 메트릭 활성화
 }
 
-// Cache TTL
-const (
-    MappingCacheTTL      = 10 * time.Minute
-    MatchRateCacheTTL    = 1 * time.Minute
-    CircuitStateCacheTTL = 30 * time.Second
-)
+// Cache Usage Example
+func ExampleRistrettoUsage() {
+    // 캐시 어댑터 초기화
+    config := &RistrettoConfig{
+        MaxSizeMB:      1024,
+        NumCounters:    10000000,
+        BufferItems:    64,
+        MetricsEnabled: true,
+    }
+    cacheRepo, _ := NewRistrettoAdapter(config)
 
-// Redis 명령어 예시
-func ExampleRedisCommands() {
-    // 매핑 캐시
-    rdb.Set(ctx, "mapping:/api/users", mappingJSON, MappingCacheTTL)
-    
-    // 일치율 임시 집계 (Sorted Set)
-    rdb.ZAdd(ctx, "matchrate:mapping-id-1", &redis.Z{
-        Score:  float64(time.Now().Unix()),
-        Member: 98.5,
+    // 캐시 저장
+    key := "routing:rule:GET:/api/users"
+    value := []byte(`{"id":"rule-1","pattern":"/api/users/*"}`)
+    ttl := 60 * time.Second
+    cacheRepo.Set(ctx, key, value, ttl)
+
+    // 캐시 조회
+    cached, err := cacheRepo.Get(ctx, key)
+    if err == domain.ErrCacheNotFound {
+        // 캐시 미스 - DB 조회
+    }
+
+    // GetOrSet 패턴
+    result, _ := cacheRepo.GetOrSet(ctx, key, ttl, func() ([]byte, error) {
+        // DB에서 데이터 로드
+        return loadFromDB(key)
     })
-    
-    // 최근 100건 조회
-    rates := rdb.ZRange(ctx, "matchrate:mapping-id-1", -100, -1)
-    
-    // Circuit Breaker 상태
-    rdb.Set(ctx, "circuit:legacy:/api/users", "open", CircuitStateCacheTTL)
 }
+
+// 주요 특징:
+// - 비동기 Set: 성능 최적화를 위해 SetWithTTL은 비동기로 처리
+// - LFU Eviction: 메모리 초과 시 Least Frequently Used 정책으로 자동 제거
+// - TTL 지원: 나노초 단위까지 정밀한 TTL 지원
+// - 메트릭: cache.Metrics로 히트율, 미스율 등 조회 가능
 ```
+
+**Redis 대비 장단점**:
+| 항목 | Redis | Ristretto |
+|------|-------|-----------|
+| **레이턴시** | ~1-2ms (네트워크) | ~10μs (메모리) |
+| **인스턴스 간 공유** | ✅ 가능 | ❌ 불가 (로컬) |
+| **메모리 사용** | 중앙집중식 | 인스턴스당 1GB |
+| **장애 격리** | Redis 장애 시 전체 영향 | 인스턴스 독립 |
+| **운영 복잡도** | 높음 (Redis 서버 필요) | 낮음 (설정만 필요) |
 
 ### Prometheus 메트릭
 
@@ -1304,20 +1328,25 @@ func RecordComparison(mappingID string, isMatch bool) {
 
 ```go
 // go.mod
-module github.com/yourorg/api-bridge
+module demo-api-bridge
 
-go 1.21
+go 1.25.1
 
 require (
-    github.com/gin-gonic/gin v1.9.1
-    github.com/sony/gobreaker v0.5.0
-    github.com/prometheus/client_golang v1.17.0
-    github.com/redis/go-redis/v9 v9.3.0
-    github.com/spf13/viper v1.17.0
-    go.uber.org/zap v1.26.0
-    github.com/google/uuid v1.4.0
+    github.com/gin-gonic/gin v1.11.0
+    github.com/dgraph-io/ristretto v0.2.0         // ⭐ NEW: 로컬 캐시
+    github.com/prometheus/client_golang v1.19.1
+    // github.com/redis/go-redis/v9 v9.14.0       // DEPRECATED
+    github.com/sony/gobreaker v1.0.0
+    go.uber.org/zap v1.27.0
+    gopkg.in/yaml.v3 v3.0.1
 )
 ```
+
+**주요 변경사항**:
+- ✅ **추가**: `github.com/dgraph-io/ristretto` - 고성능 로컬 캐시
+- ⚠️ **제거 고려**: `github.com/redis/go-redis/v9` - 현재는 호환성을 위해 유지
+- ⬆️ **업그레이드**: 모든 라이브러리 최신 버전 사용
 
 ### 설정 파일 예시
 
@@ -1351,17 +1380,17 @@ database:
   conn_max_lifetime: 5m
   connection_timeout: 10s
 
-# Redis Cache 설정
-redis:
-  host: dev3.konadc.com
-  port: 6379
-  password: "123456"
-  db: 0
-  pool_size: 10
-  min_idle_conns: 5
-  dial_timeout: 5s
-  read_timeout: 3s
-  write_timeout: 3s
+# Redis Cache 설정 - DEPRECATED (Ristretto 로컬 캐시로 전환)
+# redis:
+#   host: dev3.konadc.com
+#   port: 6379
+#   password: "123456"
+#   db: 0
+#   pool_size: 10
+#   min_idle_conns: 5
+#   dial_timeout: 5s
+#   read_timeout: 3s
+#   write_timeout: 3s
 
 # 외부 API 설정
 external_api:
@@ -1384,11 +1413,16 @@ metrics:
   port: 9090
   path: /metrics
 
-# 캐시 설정
+# 캐시 설정 (Ristretto 로컬 캐시)
 cache:
-  default_ttl: 300s  # 5분
-  routing_rules_ttl: 3600s  # 1시간
-  api_response_ttl: 600s  # 10분
+  type: local               # local (ristretto), redis (deprecated), mock
+  max_size_mb: 1024         # 1GB 최대 메모리
+  num_counters: 10000000    # 10M counters (추정 항목의 10배)
+  buffer_items: 64          # Get 버퍼 크기
+  metrics_enabled: true     # Ristretto 메트릭 활성화
+  default_ttl: 300s         # 기본 TTL: 5분
+  routing_rules_ttl: 3600s  # 라우팅 규칙 TTL: 1시간
+  api_response_ttl: 600s    # API 응답 TTL: 10분
 
 # ⚠️ 중요: API 엔드포인트 설정 (메모리 기반, DB 조회 불필요)
 endpoints:
