@@ -40,6 +40,9 @@ func (h *Handler) ProcessBridgeRequest(c *gin.Context) {
 
     // 1. 요청 파라미터 추출
     // 변경: c.Param("path") 대신 c.Request.URL.Path 사용
+    // 이유: NoRoute 핸들러에서는 Param이 동작하지 않음
+    //       router.NoRoute()로 등록된 핸들러는 와일드카드 파라미터를 사용하지 않으므로
+    //       Request.URL.Path로 전체 경로를 직접 추출해야 함
     path := c.Request.URL.Path        // 전체 URL 경로 추출
     method := c.Request.Method         // HTTP 메서드
 
@@ -948,24 +951,31 @@ func (h *httpClientAdapter) buildHTTPRequest(
 
 ### 성능 메트릭
 
-| 항목 | 값 | 설명 |
-|------|-----|------|
-| **병렬 호출 오버헤드** | 15-20ms | 느린 API 대기 시간 |
-| **JSON 비교 오버헤드** | <10ms | 재귀 비교 알고리즘 |
-| **Rate Limit** | 100 req/sec | 버스트: 200 |
-| **연결 풀 크기** | 200개 | 호스트당 50개 유휴 |
-| **재시도 횟수** | 설정 가능 | 기본 3회 |
-| **재시도 간격** | Exponential | 1s, 2s, 3s... |
-| **캐시 TTL** | 300초 | 5분 (설정 가능) |
-| **타임아웃** | 엔드포인트별 | 기본 5초 |
+| 항목 | 값 | 설명 | 측정 타입 |
+|------|-----|------|-----------|
+| **병렬 호출 오버헤드** | 15-20ms | 느린 API 대기 시간 | ⚠️ 추정값 (환경별 변동) |
+| **JSON 비교 오버헤드** | <10ms | 재귀 비교 알고리즘 | ⚠️ 추정값 (응답 크기에 비례) |
+| **Rate Limit** | 100 req/sec | 버스트: 200 | ✅ 설정값 (`middleware.go:119`) |
+| **연결 풀 크기** | 200개 | 호스트당 50개 유휴 | ✅ 설정값 (`client_adapter.go:28-30`) |
+| **재시도 횟수** | 설정 가능 | 기본 3회 | ✅ 엔드포인트별 설정 |
+| **재시도 간격** | Linear | 1s, 2s, 3s... | ✅ 코드 확인 (`client_adapter.go:642`) |
+| **라우팅 캐시 TTL** | 60초 | 메모리 캐시 | ✅ 설정값 (`bridge_service.go:94`) |
+| **응답 캐시 TTL** | 300초 | Redis 캐시 | ✅ 설정값 (`config.yaml:63`) |
+| **타임아웃** | 엔드포인트별 | 레거시: 5초, 모던: 3초 | ✅ 설정값 (`config.yaml:1406,1424`) |
+
+**범례**:
+- ✅ **설정값**: 코드 또는 설정 파일에서 확인된 정확한 값
+- ⚠️ **추정값**: 실제 환경에서 측정 필요 (응답 크기, 네트워크 상태에 따라 변동)
 
 ### 모드별 성능 비교
 
-| 모드 | 응답 시간 | 오버헤드 | 비교 수행 |
-|------|----------|---------|----------|
-| **LEGACY_ONLY** | ~100ms | 0ms | 없음 |
-| **MODERN_ONLY** | ~80ms | 0ms | 없음 |
-| **PARALLEL** | ~120ms | 15-20ms | 있음 |
+| 모드 | 응답 시간 | 오버헤드 | 비교 수행 | 측정 타입 |
+|------|----------|---------|----------|-----------|
+| **LEGACY_ONLY** | ~100ms | 0ms | 없음 | ⚠️ 추정값 (API 응답 시간에 의존) |
+| **MODERN_ONLY** | ~80ms | 0ms | 없음 | ⚠️ 추정값 (API 응답 시간에 의존) |
+| **PARALLEL** | ~120ms | 15-20ms | 있음 | ⚠️ 추정값 (느린 API 기준 + 비교 시간) |
+
+**참고**: 실제 응답 시간은 외부 API의 성능에 따라 크게 달라집니다.
 
 ### 최적화 포인트
 
@@ -1087,14 +1097,18 @@ internal/
 
 | 용도 | 경로 | 설명 |
 |------|------|------|
-| **브리지 요청** | `/api/*path` | 레거시/모던 API로 프록시 (모든 /api/* 요청) |
+| **브리지 요청** | **`router.NoRoute()`** | **실제 구현**: `/abs/*` 를 제외한 모든 경로를 NoRoute 핸들러로 프록시 |
 | **Health** | `/abs/health` | 헬스 체크 |
 | **Readiness** | `/abs/ready` | 준비 상태 |
 | **Status** | `/abs/v1/status` | 상세 상태 |
 | **Metrics** | `/abs/metrics` | Prometheus 메트릭 |
-| **CRUD APIs** | `/abs/v1/*` | 관리용 CRUD API |
-| **Swagger** | `/swagger/*` | API 문서 |
-| **Debug/Profiling** | `/debug/pprof/*` | 성능 프로파일링 |
+| **CRUD APIs** | `/abs/v1/*` | 관리용 CRUD API (Endpoints, Routing Rules, Orchestration Rules) |
+| **Swagger** | `/abs/swagger/*` | API 문서 (Swagger UI) |
+| **Debug/Profiling** | `/abs/debug/pprof/*` | 성능 프로파일링 (pprof) |
+
+**중요**: 브리지 요청은 와일드카드 라우트(`/*path`)가 아닌 **NoRoute 핸들러**로 구현됩니다.
+- 장점: `/abs/` 하위 관리 API와 명확하게 분리
+- 구현: `cmd/api-bridge/main.go:345` - `router.NoRoute(handler.ProcessBridgeRequest)`
 
 ### 데이터 흐름
 

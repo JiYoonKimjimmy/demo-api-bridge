@@ -28,26 +28,45 @@ import (
     "time"
 )
 
-// HTTP Server 초기화
+// HTTP Server 초기화 (cmd/api-bridge/main.go의 setupRoutes 참조)
 func NewAPIServer(config *Config) *gin.Engine {
     router := gin.New()
-    
-    // Middleware 등록
+
+    // Middleware 등록 (순서 중요!)
     router.Use(
-        RequestLoggerMiddleware(),
-        CORSMiddleware(),
-        RateLimiterMiddleware(),
-        AuthenticationMiddleware(),
-        RequestValidatorMiddleware(),
+        gin.Recovery(),                           // 패닉 복구
+        NewLoggingMiddleware(logger),             // 구조화된 로깅
+        NewMetricsMiddleware(metricsCollector),   // 성능 메트릭 수집
+        NewCORSMiddleware(),                      // CORS 헤더 처리
+        NewRateLimitMiddleware(),                 // Rate Limiting (100 req/sec)
     )
-    
-    // Health Check
-    router.GET("/health", HealthCheckHandler)
-    router.GET("/ready", ReadinessCheckHandler)
-    
-    // API 브리지 엔드포인트
-    router.Any("/*path", BridgeHandler)
-    
+
+    // === Internal Management API (우선순위 높음 - 먼저 등록) ===
+    abs := router.Group("/abs")
+    {
+        // Health Check & Monitoring
+        abs.GET("/health", HealthCheckHandler)
+        abs.GET("/ready", ReadinessCheckHandler)
+        abs.GET("/metrics", MetricsHandler)
+        abs.GET("/status", StatusHandler)
+
+        // Swagger UI & Documentation
+        abs.GET("/swagger/*any", SwaggerHandler)
+        abs.Static("/swagger-yaml", "./api-docs")
+
+        // pprof 프로파일링 (디버그 전용)
+        abs.GET("/debug/pprof/*any", PprofHandler)
+
+        // CRUD APIs
+        abs.POST("/v1/endpoints", CreateEndpointHandler)
+        abs.GET("/v1/endpoints", ListEndpointsHandler)
+        // ... 기타 CRUD 엔드포인트
+    }
+
+    // === API Bridge - 모든 외부 요청 처리 (반드시 마지막에 등록!) ===
+    // NoRoute 핸들러: /abs/* 를 제외한 모든 경로를 브릿지로 라우팅
+    router.NoRoute(BridgeHandler)
+
     return router
 }
 
@@ -82,12 +101,27 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 
 // Rate Limiter Middleware
 func RateLimiterMiddleware() gin.HandlerFunc {
-    limiter := rate.NewLimiter(1000, 2000) // 1000 req/sec, burst 2000
-    
+    limiter := rate.NewLimiter(100, 200) // 100 req/sec, burst 200
+
+    // Rate limit에서 제외할 경로 정의
+    // 관리 API, 모니터링, Swagger는 Rate Limit에서 제외
+    skipPaths := []string{
+        "/abs/", // 모든 관리 API (Health, CRUD, Metrics, Debug, Swagger 등)
+    }
+
     return func(c *gin.Context) {
+        // 제외 경로 확인
+        for _, skipPath := range skipPaths {
+            if strings.HasPrefix(c.Request.URL.Path, skipPath) {
+                c.Next()
+                return
+            }
+        }
+
+        // Rate limit 적용
         if !limiter.Allow() {
             c.JSON(429, gin.H{
-                "error": "Too Many Requests",
+                "error": "Rate limit exceeded",
             })
             c.Abort()
             return
@@ -104,99 +138,153 @@ func RateLimiterMiddleware() gin.HandlerFunc {
 ### 데이터 구조
 
 ```go
-package routing
+package domain
 
-// Routing Service
-type RoutingService struct {
-    mappingRepo  MappingRepository
-    cache        Cache
-    strategyMgr  StrategyManager
-    metrics      *RoutingMetrics
-}
-
-// API Mapping
-type APIMapping struct {
-    ID            string          `json:"id" db:"id"`
-    ClientPath    string          `json:"client_path" db:"client_path"`
-    LegacyURL     string          `json:"legacy_url" db:"legacy_url"`
-    ModernURL     string          `json:"modern_url" db:"modern_url"`
-    Strategy      RoutingStrategy `json:"strategy" db:"strategy"`
-    MatchRate     float64         `json:"match_rate" db:"match_rate"`
-    Threshold     float64         `json:"threshold" db:"threshold"`
-    IsActive      bool            `json:"is_active" db:"is_active"`
-    CreatedAt     time.Time       `json:"created_at" db:"created_at"`
-    UpdatedAt     time.Time       `json:"updated_at" db:"updated_at"`
-}
-
-// Routing Strategy
-type RoutingStrategy string
-
-const (
-    LEGACY_ONLY  RoutingStrategy = "legacy_only"   // 레거시만 호출
-    PARALLEL     RoutingStrategy = "parallel"       // 병렬 호출 + 검증
-    MODERN_ONLY  RoutingStrategy = "modern_only"   // 모던만 호출
+import (
+    "regexp"
+    "time"
 )
+
+// RoutingRule은 요청을 적절한 엔드포인트로 라우팅하는 규칙을 나타냅니다.
+type RoutingRule struct {
+    ID               string            // 규칙 고유 ID
+    Name             string            // 규칙 이름
+    PathPattern      string            // 경로 패턴 (예: /api/v1/users/*)
+    MethodPattern    string            // HTTP 메서드 패턴 (예: GET, POST, *)
+    Method           string            // HTTP 메서드
+    Headers          map[string]string // 헤더 매칭
+    QueryParams      map[string]string // 쿼리 파라미터 매칭
+    EndpointID       string            // 대상 엔드포인트 ID
+    LegacyEndpointID string            // 레거시 엔드포인트 ID
+    ModernEndpointID string            // 모던 엔드포인트 ID
+    Priority         int               // 우선순위 (낮을수록 먼저 매칭)
+    IsActive         bool              // 활성화 여부
+    CacheEnabled     bool              // 캐시 사용 여부
+    CacheTTL         int               // 캐시 TTL (초)
+    Description      string            // 설명
+    CreatedAt        time.Time         // 생성 시간
+    UpdatedAt        time.Time         // 수정 시간
+    compiledRegex    *regexp.Regexp    // 컴파일된 정규식 (private)
+}
+
+// NewRoutingRule은 새로운 RoutingRule을 생성합니다.
+func NewRoutingRule(id, name, pathPattern, methodPattern, endpointID string) *RoutingRule {
+    return &RoutingRule{
+        ID:            id,
+        Name:          name,
+        PathPattern:   pathPattern,
+        MethodPattern: methodPattern,
+        EndpointID:    endpointID,
+        Priority:      100,
+        IsActive:      true,
+        CacheEnabled:  false,
+        CacheTTL:      300, // 기본 5분
+    }
+}
 ```
 
 ### 라우팅 로직
 
 ```go
-// 라우팅 결정
-func (s *RoutingService) Route(ctx context.Context, clientPath string) (*APIMapping, error) {
-    // 1. 캐시 조회
-    cacheKey := fmt.Sprintf("mapping:%s", clientPath)
-    if mapping, err := s.cache.Get(cacheKey); err == nil {
-        return mapping, nil
-    }
-    
-    // 2. DB 조회
-    mapping, err := s.mappingRepo.FindByClientPath(ctx, clientPath)
-    if err != nil {
-        return nil, fmt.Errorf("mapping not found: %w", err)
-    }
-    
-    // 3. 캐시 저장
-    s.cache.Set(cacheKey, mapping, 10*time.Minute)
-    
-    return mapping, nil
+package service
+
+// bridgeService에 포함된 메모리 캐시 구조
+type routingRuleCacheEntry struct {
+    rules     []*domain.RoutingRule
+    timestamp time.Time
 }
 
-// URL 매칭 (Radix Tree 사용)
-type RadixTree struct {
-    root *node
+type bridgeService struct {
+    // ... 기타 필드
+    routingRuleCache    map[string]*routingRuleCacheEntry // 캐시 맵 (key: method:path)
+    routingRuleCacheMu  sync.RWMutex                      // 캐시 락
+    routingRuleCacheTTL time.Duration                     // 캐시 TTL (기본: 60초)
 }
 
-type node struct {
-    prefix   string
-    mapping  *APIMapping
-    children map[string]*node
-}
+// GetRoutingRule: 라우팅 규칙 조회 (메모리 캐시 → Redis → DB)
+func (s *bridgeService) GetRoutingRule(ctx context.Context, request *domain.Request) (*domain.RoutingRule, error) {
+    cacheKey := fmt.Sprintf("%s:%s", request.Method, request.Path)
 
-func (t *RadixTree) Match(path string) (*APIMapping, error) {
-    current := t.root
-    remaining := path
-    
-    for {
-        if current.mapping != nil && remaining == "" {
-            return current.mapping, nil
-        }
-        
-        matched := false
-        for prefix, child := range current.children {
-            if strings.HasPrefix(remaining, prefix) {
-                current = child
-                remaining = strings.TrimPrefix(remaining, prefix)
-                matched = true
-                break
+    // 1. 메모리 캐시 조회
+    s.routingRuleCacheMu.RLock()
+    if entry, exists := s.routingRuleCache[cacheKey]; exists {
+        if time.Since(entry.timestamp) < s.routingRuleCacheTTL {
+            s.routingRuleCacheMu.RUnlock()
+            // 캐시된 규칙 중 매칭되는 것 찾기
+            for _, rule := range entry.rules {
+                if matched, _ := rule.Matches(request); matched {
+                    return rule, nil
+                }
             }
         }
-        
-        if !matched {
-            return nil, fmt.Errorf("no mapping found for path: %s", path)
+    }
+    s.routingRuleCacheMu.RUnlock()
+
+    // 2. DB에서 모든 활성 규칙 조회
+    rules, err := s.routingRepo.FindMatchingRules(ctx, request.Path, request.Method)
+    if err != nil {
+        return nil, err
+    }
+
+    // 3. 메모리 캐시에 저장
+    s.routingRuleCacheMu.Lock()
+    s.routingRuleCache[cacheKey] = &routingRuleCacheEntry{
+        rules:     rules,
+        timestamp: time.Now(),
+    }
+    s.routingRuleCacheMu.Unlock()
+
+    // 4. 매칭되는 규칙 찾기 (우선순위 순)
+    for _, rule := range rules {
+        if matched, _ := rule.Matches(request); matched {
+            return rule, nil
         }
     }
+
+    return nil, domain.ErrRouteNotFound
+}
+
+// Matches: 정규식 기반 패턴 매칭
+func (r *RoutingRule) Matches(request *Request) (bool, error) {
+    if !r.IsActive {
+        return false, nil
+    }
+
+    // 메서드 매칭
+    if r.MethodPattern != "*" && r.MethodPattern != request.Method {
+        return false, nil
+    }
+
+    // 경로 패턴 매칭 (정규식)
+    if r.compiledRegex == nil {
+        pattern := convertPatternToRegex(r.PathPattern)
+        var err error
+        r.compiledRegex, err = regexp.Compile(pattern)
+        if err != nil {
+            return false, NewDomainError("REGEX_COMPILE_ERROR", "failed to compile path pattern", err)
+        }
+    }
+
+    return r.compiledRegex.MatchString(request.Path), nil
+}
+
+// convertPatternToRegex: 간단한 패턴을 정규식으로 변환
+// 예: /api/v1/users/* -> ^/api/v1/users/.*$
+func convertPatternToRegex(pattern string) string {
+    // 특수문자 이스케이프
+    regex := regexp.QuoteMeta(pattern)
+    // * 를 .* 로 변환
+    regex = regexp.MustCompile(`\\\*`).ReplaceAllString(regex, ".*")
+    // 시작과 끝 앵커 추가
+    return "^" + regex + "$"
 }
 ```
+
+**라우팅 메커니즘 요약:**
+1. **3-tier 캐시 전략**: 메모리 캐시(60초 TTL) → Redis 캐시 → OracleDB
+2. **정규식 기반 매칭**: Radix Tree 대신 `regexp.Compile()` 사용
+3. **우선순위 기반 선택**: 여러 규칙이 매칭되면 Priority 낮은(높은 우선순위) 것 선택
+4. **컴파일 캐싱**: 정규식 객체를 RoutingRule 내부에 캐싱하여 성능 최적화
 
 ---
 
@@ -326,51 +414,110 @@ func (o *Orchestrator) callModernOnly(ctx context.Context, req *Request) (*Respo
 ### Circuit Breaker 구현
 
 ```go
-package orchestration
+package service
 
-import "github.com/sony/gobreaker"
+import (
+    "context"
+    "demo-api-bridge/internal/core/domain"
+    "demo-api-bridge/internal/core/port"
+    "fmt"
+    "sync"
+    "time"
+)
 
-// Circuit Breaker
-type CircuitBreaker struct {
-    legacyBreaker  *gobreaker.CircuitBreaker
-    modernBreaker  *gobreaker.CircuitBreaker
+// circuitBreakerService: 자체 구현 Circuit Breaker 서비스
+type circuitBreakerService struct {
+    breakers map[string]*domain.CircuitBreaker
+    mu       sync.RWMutex
+    logger   port.Logger
+    metrics  port.MetricsCollector
 }
 
-// Circuit Breaker 초기화
-func NewCircuitBreaker() *CircuitBreaker {
-    settings := gobreaker.Settings{
-        Name:        "API",
-        MaxRequests: 3,           // Half-Open 상태에서 허용 요청 수
-        Interval:    10 * time.Second,
-        Timeout:     30 * time.Second,
-        ReadyToTrip: func(counts gobreaker.Counts) bool {
-            failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
-            return counts.Requests >= 5 && failureRatio >= 0.6
-        },
-        OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
-            logger.Warn("circuit breaker state changed",
-                "name", name,
-                "from", from.String(),
-                "to", to.String(),
-            )
-        },
-    }
-    
-    return &CircuitBreaker{
-        legacyBreaker:  gobreaker.NewCircuitBreaker(settings),
-        modernBreaker:  gobreaker.NewCircuitBreaker(settings),
+// NewCircuitBreakerService: Circuit Breaker 서비스 생성
+func NewCircuitBreakerService(logger port.Logger, metrics port.MetricsCollector) port.CircuitBreakerService {
+    return &circuitBreakerService{
+        breakers: make(map[string]*domain.CircuitBreaker),
+        logger:   logger,
+        metrics:  metrics,
     }
 }
 
-// 실행
-func (cb *CircuitBreaker) ExecuteLegacy(fn func() (interface{}, error)) (interface{}, error) {
-    return cb.legacyBreaker.Execute(fn)
+// Execute: Circuit Breaker를 통한 함수 실행
+func (s *circuitBreakerService) Execute(
+    ctx context.Context,
+    name string,
+    config *domain.CircuitBreakerConfig,
+    fn func() (interface{}, error),
+) (interface{}, error) {
+    // 1. Circuit Breaker 조회 또는 생성
+    breaker := s.getOrCreateBreaker(name, config)
+
+    // 2. 현재 상태 확인
+    if !breaker.CanExecute() {
+        s.logger.Warn("circuit breaker is open, rejecting request", "name", name)
+        s.metrics.IncrementCounter("circuit_breaker_rejected", map[string]string{"name": name})
+        return nil, fmt.Errorf("circuit breaker '%s' is open", name)
+    }
+
+    // 3. 함수 실행
+    start := time.Now()
+    result, err := fn()
+    duration := time.Since(start)
+
+    // 4. 결과 기록
+    if err != nil {
+        breaker.RecordFailure()
+        s.logger.Error("circuit breaker recorded failure",
+            "name", name,
+            "error", err,
+            "duration_ms", duration.Milliseconds(),
+        )
+        s.metrics.IncrementCounter("circuit_breaker_failures", map[string]string{"name": name})
+    } else {
+        breaker.RecordSuccess()
+        s.metrics.IncrementCounter("circuit_breaker_success", map[string]string{"name": name})
+    }
+
+    // 5. 메트릭 기록
+    s.metrics.RecordHistogram("circuit_breaker_duration", duration.Seconds(), map[string]string{"name": name})
+
+    return result, err
 }
 
-func (cb *CircuitBreaker) ExecuteModern(fn func() (interface{}, error)) (interface{}, error) {
-    return cb.modernBreaker.Execute(fn)
+// getOrCreateBreaker: Circuit Breaker 조회 또는 생성
+func (s *circuitBreakerService) getOrCreateBreaker(name string, config *domain.CircuitBreakerConfig) *domain.CircuitBreaker {
+    s.mu.RLock()
+    breaker, exists := s.breakers[name]
+    s.mu.RUnlock()
+
+    if exists {
+        return breaker
+    }
+
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    // Double-check (다른 고루틴이 생성했을 수 있음)
+    if breaker, exists := s.breakers[name]; exists {
+        return breaker
+    }
+
+    // 새 Circuit Breaker 생성
+    breaker = domain.NewCircuitBreaker(name, config)
+    s.breakers[name] = breaker
+
+    s.logger.Info("circuit breaker created", "name", name)
+
+    return breaker
 }
 ```
+
+**Circuit Breaker 특징:**
+1. **자체 구현**: `sony/gobreaker` 대신 도메인 모델 기반 구현
+2. **상태 관리**: Closed → Open → Half-Open 자동 전환
+3. **실패율 기반 트립**: 설정 가능한 임계값 (기본: 60%)
+4. **메트릭 통합**: 성공/실패/거부 카운터 자동 기록
+5. **스레드 세이프**: `sync.RWMutex`로 동시성 제어
 
 ---
 
@@ -468,39 +615,72 @@ func (c *HTTPClient) Do(ctx context.Context, req *http.Request) (*http.Response,
 ### Retry Policy 구현
 
 ```go
-package client
+package httpclient
 
 import (
-    "math"
-    "math/rand"
+    "context"
+    "strings"
     "time"
 )
 
-// Retry Policy
-type RetryPolicy struct {
-    MaxRetries   int
-    InitialDelay time.Duration
-    MaxDelay     time.Duration
-    Multiplier   float64
-    Jitter       bool
+// sendWithRetryInternal: 내부 재시도 로직 (Linear Backoff)
+func (h *httpClientAdapter) sendWithRetryInternal(
+    ctx context.Context,
+    endpoint *domain.APIEndpoint,
+    request *domain.Request,
+) (*domain.Response, error) {
+    var lastErr error
+    attempt := 0
+
+    for attempt <= endpoint.RetryCount {
+        // 재시도 대기 (Linear Backoff: 1초, 2초, 3초...)
+        if attempt > 0 {
+            // Context 취소 확인
+            select {
+            case <-ctx.Done():
+                return nil, ctx.Err()
+            case <-time.After(time.Duration(attempt) * time.Second):
+                // 대기 완료
+            }
+        }
+
+        // API 호출
+        response, err := h.SendRequest(ctx, endpoint, request)
+        if err == nil {
+            return response, nil // 성공
+        }
+
+        lastErr = err
+        attempt++
+
+        // 재시도 가능한 에러만 재시도
+        if !h.isRetryableError(err) {
+            break
+        }
+
+        // 엔드포인트 재시도 설정 체크
+        if !endpoint.ShouldRetry(attempt) {
+            break
+        }
+    }
+
+    return nil, fmt.Errorf("request failed after %d attempts: %w", attempt, lastErr)
 }
 
-// 지연 시간 계산 (Exponential Backoff with Jitter)
-func (p *RetryPolicy) CalculateDelay(attempt int) time.Duration {
-    delay := float64(p.InitialDelay) * math.Pow(p.Multiplier, float64(attempt))
-    
-    if delay > float64(p.MaxDelay) {
-        delay = float64(p.MaxDelay)
-    }
-    
-    if p.Jitter {
-        // Full Jitter
-        delay = rand.Float64() * delay
-    }
-    
-    return time.Duration(delay)
+// isRetryableError: 재시도 가능한 에러 판단
+func (h *httpClientAdapter) isRetryableError(err error) bool {
+    errMsg := err.Error()
+    return strings.Contains(errMsg, "timeout") ||
+        strings.Contains(errMsg, "connection refused") ||
+        strings.Contains(errMsg, "connection reset")
 }
 ```
+
+**재시도 전략:**
+1. **Linear Backoff**: 1초 → 2초 → 3초 (Exponential이 아님)
+2. **재시도 조건**: Timeout, Connection Refused, Connection Reset
+3. **최대 재시도**: 엔드포인트별 설정 가능 (기본: 3회)
+4. **Context 취소 지원**: Graceful shutdown 시 즉시 중단
 
 ---
 
@@ -671,6 +851,26 @@ func (r *ComparisonRule) CompareNumeric(a, b float64) bool {
 }
 ```
 
+**⚠️ 중요: 배열 비교 성능 최적화**
+
+실제 구현에서는 배열 비교 시 **최대 10개 요소**만 비교합니다 (`internal/core/domain/comparison.go:175-182`):
+
+```go
+// 배열 요소 비교 (최대 10개까지만)
+maxLen := len(legacyVal)
+if len(modernVal) > maxLen {
+    maxLen = len(modernVal)
+}
+if maxLen > 10 {
+    maxLen = 10 // 성능을 위해 제한
+}
+```
+
+**이유:**
+- 대용량 배열 응답 시 비교 시간이 급격히 증가
+- 10개 샘플로도 충분한 일치율 판단 가능
+- 클라이언트 응답 지연 최소화 (목표: <10ms)
+
 ---
 
 ## 6. Decision Engine
@@ -780,17 +980,17 @@ func (t *TransitionController) TransitionToModern(ctx context.Context, mappingID
 // 롤백
 func (t *TransitionController) Rollback(ctx context.Context, mappingID string, reason string) error {
     logger.Warn("rolling back to parallel", "mapping_id", mappingID, "reason", reason)
-    
+
     // 1. DB 상태 업데이트
     err := t.repo.UpdateStrategy(ctx, mappingID, PARALLEL)
     if err != nil {
         return fmt.Errorf("failed to rollback strategy: %w", err)
     }
-    
+
     // 2. 캐시 무효화
     cacheKey := fmt.Sprintf("mapping:%s", mappingID)
     t.cache.Delete(cacheKey)
-    
+
     // 3. 롤백 이력 저장
     history := &TransitionHistory{
         MappingID:     mappingID,
@@ -801,7 +1001,7 @@ func (t *TransitionController) Rollback(ctx context.Context, mappingID string, r
         CreatedAt:     time.Now(),
     }
     t.repo.SaveTransitionHistory(ctx, history)
-    
+
     // 4. 이벤트 발행
     t.eventBus.Publish(Event{
         Type: "API_ROLLBACK",
@@ -811,8 +1011,33 @@ func (t *TransitionController) Rollback(ctx context.Context, mappingID string, r
             "timestamp":  time.Now(),
         },
     })
-    
+
     return nil
+}
+```
+
+**전환 설정 기본값 (domain/orchestration.go:97-103):**
+
+```go
+TransitionConfig: TransitionConfig{
+    AutoTransitionEnabled:    true,
+    MatchRateThreshold:       0.95,  // 95% 일치 시 전환
+    StabilityPeriod:          24 * time.Hour,  // 24시간 안정화 기간
+    MinRequestsForTransition: 100,
+    RollbackThreshold:        0.90,  // 90% 미만 시 롤백
+},
+```
+
+**롤백 조건 평가 (domain/orchestration.go:135-141):**
+
+```go
+// ShouldRollback는 롤백이 필요한지 확인합니다.
+func (o *OrchestrationRule) ShouldRollback(recentMatchRate float64) bool {
+    if o.CurrentMode != MODERN_ONLY {
+        return false
+    }
+
+    return recentMatchRate < o.TransitionConfig.RollbackThreshold
 }
 ```
 
@@ -822,59 +1047,121 @@ func (t *TransitionController) Rollback(ctx context.Context, mappingID string, r
 
 ### OracleDB 스키마
 
+**실제 데이터베이스 구조는 4개의 독립적인 테이블로 구성됩니다** (`scripts/create_tables.sql`):
+
 ```sql
--- API 매핑 테이블
-CREATE TABLE api_mappings (
-    id VARCHAR2(36) PRIMARY KEY,
-    client_path VARCHAR2(500) NOT NULL,
-    legacy_url VARCHAR2(1000) NOT NULL,
-    modern_url VARCHAR2(1000) NOT NULL,
-    strategy VARCHAR2(20) NOT NULL,
-    match_rate NUMBER(5,2) DEFAULT 0,
-    threshold NUMBER(5,2) DEFAULT 100,
-    is_active NUMBER(1) DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_strategy CHECK (strategy IN ('legacy_only', 'parallel', 'modern_only')),
-    CONSTRAINT uk_client_path UNIQUE (client_path)
+-- 1. API Endpoints Table (API 엔드포인트 정보)
+CREATE TABLE MAP.ABS_API_ENDPOINTS (
+    id VARCHAR2(100) PRIMARY KEY,
+    name VARCHAR2(200) NOT NULL,
+    description VARCHAR2(500),
+    base_url VARCHAR2(500) NOT NULL,
+    health_url VARCHAR2(500),
+    is_active NUMBER(1) DEFAULT 1 NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_endpoints_is_active CHECK (is_active IN (0, 1))
 );
 
--- 비교 결과 이력 테이블
-CREATE TABLE comparison_history (
-    id VARCHAR2(36) PRIMARY KEY,
-    mapping_id VARCHAR2(36) NOT NULL,
-    is_match NUMBER(1) NOT NULL,
-    match_rate NUMBER(5,2) NOT NULL,
-    differences CLOB,
-    trace_id VARCHAR2(64),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_comparison_mapping FOREIGN KEY (mapping_id) REFERENCES api_mappings(id)
+-- 2. Routing Rules Table (라우팅 규칙)
+CREATE TABLE MAP.ABS_ROUTING_RULES (
+    id VARCHAR2(100) PRIMARY KEY,
+    name VARCHAR2(200) NOT NULL,
+    description VARCHAR2(500),
+    method VARCHAR2(10),
+    path_pattern VARCHAR2(500) NOT NULL,
+    headers CLOB,
+    query_params CLOB,
+    legacy_endpoint_id VARCHAR2(100),
+    modern_endpoint_id VARCHAR2(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT fk_routing_legacy FOREIGN KEY (legacy_endpoint_id)
+        REFERENCES MAP.ABS_API_ENDPOINTS(id) ON DELETE SET NULL,
+    CONSTRAINT fk_routing_modern FOREIGN KEY (modern_endpoint_id)
+        REFERENCES MAP.ABS_API_ENDPOINTS(id) ON DELETE SET NULL
 );
 
--- 전환 이력 테이블
-CREATE TABLE transition_history (
-    id VARCHAR2(36) PRIMARY KEY,
-    mapping_id VARCHAR2(36) NOT NULL,
-    from_strategy VARCHAR2(20) NOT NULL,
-    to_strategy VARCHAR2(20) NOT NULL,
-    reason VARCHAR2(500),
-    performed_by VARCHAR2(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_transition_mapping FOREIGN KEY (mapping_id) REFERENCES api_mappings(id)
+-- 3. Orchestration Rules Table (오케스트레이션 규칙)
+CREATE TABLE MAP.ABS_ORCHESTRATION_RULES (
+    id VARCHAR2(100) PRIMARY KEY,
+    name VARCHAR2(200) NOT NULL,
+    description VARCHAR2(500),
+    routing_rule_id VARCHAR2(100) NOT NULL,
+    legacy_endpoint_id VARCHAR2(100) NOT NULL,
+    modern_endpoint_id VARCHAR2(100) NOT NULL,
+    current_mode VARCHAR2(20) DEFAULT 'PARALLEL' NOT NULL,
+    transition_config CLOB,  -- JSON: TransitionConfig
+    comparison_config CLOB,  -- JSON: ComparisonConfig
+    is_active NUMBER(1) DEFAULT 1 NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_orchestration_mode CHECK (
+        current_mode IN ('LEGACY_ONLY', 'PARALLEL', 'MODERN_ONLY')
+    ),
+    CONSTRAINT chk_orchestration_active CHECK (is_active IN (0, 1)),
+    CONSTRAINT fk_orchestration_routing FOREIGN KEY (routing_rule_id)
+        REFERENCES MAP.ABS_ROUTING_RULES(id) ON DELETE CASCADE,
+    CONSTRAINT fk_orchestration_legacy FOREIGN KEY (legacy_endpoint_id)
+        REFERENCES MAP.ABS_API_ENDPOINTS(id) ON DELETE CASCADE,
+    CONSTRAINT fk_orchestration_modern FOREIGN KEY (modern_endpoint_id)
+        REFERENCES MAP.ABS_API_ENDPOINTS(id) ON DELETE CASCADE
 );
 
--- 인덱스
-CREATE INDEX idx_mappings_path ON api_mappings(client_path);
-CREATE INDEX idx_mappings_strategy ON api_mappings(strategy, is_active);
-CREATE INDEX idx_comparison_mapping ON comparison_history(mapping_id, created_at);
-CREATE INDEX idx_comparison_created ON comparison_history(created_at);
-CREATE INDEX idx_transition_mapping ON transition_history(mapping_id, created_at);
+-- 4. API Comparisons Table (API 응답 비교 이력)
+CREATE TABLE MAP.ABS_API_COMPARISONS (
+    id VARCHAR2(100) PRIMARY KEY,
+    request_id VARCHAR2(100) NOT NULL,
+    routing_rule_id VARCHAR2(100),
+    match_rate NUMBER(5,4) DEFAULT 0,  -- ⚠️ 정밀도: (5,4) = 0.0000~1.0000
+    differences CLOB,  -- JSON: []ResponseDiff
+    comparison_duration_ms NUMBER(10),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT fk_comparison_routing FOREIGN KEY (routing_rule_id)
+        REFERENCES MAP.ABS_ROUTING_RULES(id) ON DELETE SET NULL
+);
 
--- 코멘트
-COMMENT ON TABLE api_mappings IS 'API 매핑 정보';
-COMMENT ON TABLE comparison_history IS '응답 비교 결과 이력';
-COMMENT ON TABLE transition_history IS 'API 전환 이력';
+-- Indexes for Performance
+CREATE INDEX IDX_ABS_ENDPOINTS_ACTIVE ON MAP.ABS_API_ENDPOINTS(is_active);
+CREATE INDEX IDX_ABS_ENDPOINTS_CREATED ON MAP.ABS_API_ENDPOINTS(created_at);
+
+CREATE INDEX IDX_ABS_ROUTING_PATH ON MAP.ABS_ROUTING_RULES(path_pattern);
+CREATE INDEX IDX_ABS_ROUTING_METHOD ON MAP.ABS_ROUTING_RULES(method);
+CREATE INDEX IDX_ABS_ROUTING_LEGACY ON MAP.ABS_ROUTING_RULES(legacy_endpoint_id);
+CREATE INDEX IDX_ABS_ROUTING_MODERN ON MAP.ABS_ROUTING_RULES(modern_endpoint_id);
+
+CREATE INDEX IDX_ABS_ORCH_ROUTING ON MAP.ABS_ORCHESTRATION_RULES(routing_rule_id);
+CREATE INDEX IDX_ABS_ORCH_MODE ON MAP.ABS_ORCHESTRATION_RULES(current_mode);
+CREATE INDEX IDX_ABS_ORCH_ACTIVE ON MAP.ABS_ORCHESTRATION_RULES(is_active);
+
+CREATE INDEX IDX_ABS_COMP_REQUEST ON MAP.ABS_API_COMPARISONS(request_id);
+CREATE INDEX IDX_ABS_COMP_ROUTING ON MAP.ABS_API_COMPARISONS(routing_rule_id);
+CREATE INDEX IDX_ABS_COMP_TIMESTAMP ON MAP.ABS_API_COMPARISONS(timestamp);
+CREATE INDEX IDX_ABS_COMP_MATCH_RATE ON MAP.ABS_API_COMPARISONS(match_rate);
 ```
+
+**테이블 관계도:**
+
+```
+ABS_API_ENDPOINTS (1) ─────┬───── (N) ABS_ROUTING_RULES
+                           │            │
+                           │            │ (1)
+                           │            │
+                           │            ↓
+                           └───── (N) ABS_ORCHESTRATION_RULES
+                                        │
+                                        │ (1)
+                                        │
+                                        ↓
+                                  (N) ABS_API_COMPARISONS
+```
+
+**주요 변경사항:**
+1. **스키마 접두사**: `MAP.ABS_*` (네임스페이스 분리)
+2. **match_rate 정밀도**: `NUMBER(5,4)` → 0.0000~1.0000 (기존 0.00~100.00에서 변경)
+3. **JSON 저장**: `transition_config`, `comparison_config`, `differences` → CLOB 타입
+4. **외래키 관계**: Cascade 삭제 지원
 
 ### Redis 데이터 구조
 
@@ -1034,52 +1321,120 @@ require (
 
 ### 설정 파일 예시
 
+**실제 config.yaml 구조** (`config/config.yaml`):
+
 ```yaml
-# config.yaml
+# API Bridge 실제 운영 설정 파일
+
 server:
-  bind_address: "192.168.1.101"
-  bind_port: 10019
-  read_timeout: 30s
-  write_timeout: 30s
+  port: 10019
+  mode: release  # debug, release
+  read_timeout: 10s   # ⚠️ 30s → 10s로 변경
+  write_timeout: 10s  # ⚠️ 30s → 10s로 변경
+  max_header_bytes: 1048576  # 1MB
 
-legacy:
-  base_url: "http://legacy-api.example.com"
-  timeout: 5s
+log:
+  level: info  # debug, info, warn, error
+  format: json  # json, console
+  output: stdout  # stdout, file
+  file_path: ./logs/app.log
 
-modern:
-  base_url: "http://modern-api.example.com"
-  timeout: 5s
-
+# Oracle Database 설정
 database:
-  driver: "oracle"
-  dsn: "oracle://user:password@localhost:1521/ORCL"
+  host: dev1-db.konadc.com
+  port: 15322
+  sid: kmdbp19
+  username: "map"
+  password: "StgMAP1104#"
   max_open_conns: 25
   max_idle_conns: 5
+  conn_max_lifetime: 5m
+  connection_timeout: 10s
 
+# Redis Cache 설정
 redis:
-  addr: "localhost:6379"
-  password: ""
+  host: dev3.konadc.com
+  port: 6379
+  password: "123456"
   db: 0
+  pool_size: 10
+  min_idle_conns: 5
+  dial_timeout: 5s
+  read_timeout: 3s
+  write_timeout: 3s
 
-circuit_breaker:
-  max_requests: 3
-  interval: 10s
+# 외부 API 설정
+external_api:
+  base_url: https://api.example.com
   timeout: 30s
-  failure_threshold: 0.6
+  retry_count: 3
+  retry_delay: 1s
+  max_retry_delay: 10s
+  retry_backoff_multiplier: 2.0
 
-comparison:
-  excluded_fields:
-    - "timestamp"
-    - "requestId"
-    - "trace_id"
-  numeric_tolerance: 0.01
-  ignore_order: false
+# Circuit Breaker 설정
+circuit_breaker:
+  max_requests: 5      # ⚠️ 3 → 5로 변경
+  interval: 10s
+  timeout: 5s          # ⚠️ 30s → 5s로 변경
 
-logging:
-  level: "info"
-  format: "json"
-  output: "/opt/api-bridge/logs/app.log"
+# 모니터링
+metrics:
+  enabled: true
+  port: 9090
+  path: /metrics
+
+# 캐시 설정
+cache:
+  default_ttl: 300s  # 5분
+  routing_rules_ttl: 3600s  # 1시간
+  api_response_ttl: 600s  # 10분
+
+# ⚠️ 중요: API 엔드포인트 설정 (메모리 기반, DB 조회 불필요)
+endpoints:
+  endpoints:
+    # Legacy API 엔드포인트
+    legacy-api:
+      id: legacy-api
+      name: Legacy API
+      description: Legacy API Information
+      base_url: http://dev3.konadc.com:10010
+      health_url: /mobile-platform-1.0/api/health
+      is_active: true
+      is_legacy: true
+      is_default: true  # 기본 레거시 엔드포인트로 지정
+      timeout: 5s
+      retry:
+        max_attempts: 3
+        initial_delay: 1s
+        max_delay: 10s
+        backoff_multiplier: 2.0
+        retryable_http_codes: [500, 502, 503, 504]
+
+    # Modern API 엔드포인트
+    modern-user-api:
+      id: modern-api
+      name: Modern API
+      description: Modern API Information
+      base_url: http://dev3.konadc.com:10010
+      health_url: /mobile-platform-1.0/api/health
+      is_active: true
+      is_legacy: false
+      is_default: true  # 기본 모던 엔드포인트로 지정
+      timeout: 3s
+      retry:
+        max_attempts: 3
+        initial_delay: 500ms
+        max_delay: 5s
+        backoff_multiplier: 2.0
+        retryable_http_codes: [500, 502, 503, 504]
 ```
+
+**주요 변경사항:**
+1. **Endpoints 섹션 추가**: Config 파일에서 직접 로드 (DB 조회 불필요)
+2. **Timeout 단축**: Read/Write timeout 30s → 10s
+3. **Circuit Breaker 완화**: max_requests 3 → 5, timeout 30s → 5s
+4. **Redis 상세 설정**: connection pool, timeout 등 세분화
 
 ---
 
