@@ -1,0 +1,28 @@
+# sql-migrate 설정 파일 템플릿
+#
+# 사용 방법:
+# 1. 이 파일을 복사하여 dbconfig.yml 생성
+#    cp dbconfig.example.yml dbconfig.yml
+# 2. 환경별 접속 정보 수정
+# 3. dbconfig.yml은 Git에 커밋하지 않음 (.gitignore에 등록됨)
+
+development:
+  dialect: oracle
+  # Oracle DSN 형식: user="USER" password="PASSWORD" connectString="HOST:PORT/SERVICE"
+  datasource: "user=\"DEMO_USER\" password=\"demo_password\" connectString=\"localhost:1521/XEPDB1\""
+  dir: db/migrations
+  table: schema_migrations
+
+staging:
+  dialect: oracle
+  datasource: "user=\"DEMO_USER\" password=\"demo_password\" connectString=\"staging-host:1521/STAGINGDB\""
+  dir: db/migrations
+  table: schema_migrations
+
+production:
+  dialect: oracle
+  # 프로덕션 환경은 환경 변수 사용 권장
+  # export DATABASE_DSN='user="PROD_USER" password="secure_password" connectString="prod:1521/PRODDB"'
+  datasource: "user=\"PROD_USER\" password=\"CHANGE_ME\" connectString=\"prod-host:1521/PRODDB\""
+  dir: db/migrations
+  table: schema_migrations

@@ -54,6 +54,9 @@ config/local.yaml
 config/dev.yaml
 config/*.local.yaml
 
+# Database migration config (contains credentials)
+dbconfig.yml
+
 # Air temporary files
 tmp/
 
