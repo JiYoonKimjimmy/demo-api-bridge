@@ -880,11 +880,11 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [x] 환경 변수 `AUTO_MIGRATE` 지원 구현
 
 ### 3. 마이그레이션 CLI 도구 구현
-- [ ] `cmd/migrate/main.go` 파일 생성
-- [ ] 환경별 DSN 설정 함수 구현 (`getDSNByEnv`)
-- [ ] 마이그레이션 실행 로직 구현 (up/down)
-- [ ] 환경 변수 우선 처리 로직 추가
-- [ ] CLI 테스트 (`go run cmd/migrate/main.go -env=development -direction=up`)
+- [x] `cmd/migrate/main.go` 파일 생성
+- [x] 환경별 DSN 설정 함수 구현 (`getDSNByEnv`)
+- [x] 마이그레이션 실행 로직 구현 (up/down)
+- [x] 환경 변수 우선 처리 로직 추가
+- [x] CLI 테스트 (`go run cmd/migrate/main.go -env=development -direction=up`)
 
 ### 4. 애플리케이션 자동 마이그레이션 구현
 - [ ] `cmd/api-bridge/main.go`에 `runMigrations` 함수 추가
