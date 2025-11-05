@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // pprof 프로파일링 엔드포인트 활성화
@@ -23,6 +24,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	migrate "github.com/rubenv/sql-migrate"
+	_ "github.com/sijms/go-ora/v2"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -157,6 +160,19 @@ type Dependencies struct {
 func initializeDependencies(cfg *config.Config) (*Dependencies, error) {
 	// 로거 초기화
 	log := logger.NewLogger()
+
+	// 🔥 데이터베이스 마이그레이션 실행 (AutoMigrate가 활성화된 경우)
+	if cfg.Database.AutoMigrate {
+		log.Info("🔧 Running database migrations...")
+		if err := runMigrations(cfg, log); err != nil {
+			// 마이그레이션 실패 시 애플리케이션 시작 중단
+			log.Error(fmt.Sprintf("❌ Database migration failed: %v", err))
+			return nil, fmt.Errorf("database migration failed: %w", err)
+		}
+		log.Info("✅ Database migrations completed successfully")
+	} else {
+		log.Info("⚠️  Auto-migration is disabled (AUTO_MIGRATE=false)")
+	}
 
 	// 메트릭 초기화
 	metricsCollector := metrics.NewMetricsCollector()
@@ -427,4 +443,42 @@ func cleanup(deps *Dependencies) {
 	}
 
 	fmt.Println("✅ Cleanup completed")
+}
+
+// runMigrations는 데이터베이스 마이그레이션을 실행합니다
+func runMigrations(cfg *config.Config, log port.Logger) error {
+	// 데이터베이스 연결
+	dsn := cfg.Database.GetDSN()
+	db, err := sql.Open("oracle", dsn)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	// 연결 테스트
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// 마이그레이션 테이블 설정
+	migrate.SetTable("gorp_migrations")
+
+	// 마이그레이션 소스 설정
+	migrations := &migrate.FileMigrationSource{
+		Dir: "db/migrations",
+	}
+
+	// 마이그레이션 실행
+	n, err := migrate.Exec(db, "oci8", migrations, migrate.Up)
+	if err != nil {
+		return fmt.Errorf("failed to execute migrations: %w", err)
+	}
+
+	if n > 0 {
+		log.Info(fmt.Sprintf("Applied %d new migration(s)", n))
+	} else {
+		log.Info("No new migrations to apply (schema is up-to-date)")
+	}
+
+	return nil
 }

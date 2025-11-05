@@ -887,11 +887,11 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [x] CLI 테스트 (`go run cmd/migrate/main.go -env=development -direction=up`)
 
 ### 4. 애플리케이션 자동 마이그레이션 구현
-- [ ] `cmd/api-bridge/main.go`에 `runMigrations` 함수 추가
-- [ ] `initializeDependencies`에 자동 마이그레이션 호출 추가
-- [ ] 마이그레이션 실패 시 애플리케이션 시작 중단 로직 구현
-- [ ] 마이그레이션 성공/실패 로깅 추가
-- [ ] DB 연결 전 마이그레이션 실행 순서 확인
+- [x] `cmd/api-bridge/main.go`에 `runMigrations` 함수 추가
+- [x] `initializeDependencies`에 자동 마이그레이션 호출 추가
+- [x] 마이그레이션 실패 시 애플리케이션 시작 중단 로직 구현
+- [x] 마이그레이션 성공/실패 로깅 추가
+- [x] DB 연결 전 마이그레이션 실행 순서 확인
 
 ### 5. 마이그레이션 파일 작성
 - [ ] `20250105_001_create_routing_rules.sql` 작성
