@@ -50,6 +50,7 @@ type DatabaseConfig struct {
 	MaxIdleConns      int           `yaml:"max_idle_conns"`
 	ConnMaxLifetime   time.Duration `yaml:"conn_max_lifetime"`
 	ConnectionTimeout time.Duration `yaml:"connection_timeout"`
+	AutoMigrate       bool          `yaml:"auto_migrate"` // 자동 마이그레이션 활성화 여부
 }
 
 // RedisConfig는 Redis 관련 설정을 나타냅니다.
@@ -182,6 +183,7 @@ func getDefaultConfig() *Config {
 			MaxIdleConns:      5,
 			ConnMaxLifetime:   5 * time.Minute,
 			ConnectionTimeout: 10 * time.Second,
+			AutoMigrate:       true, // 기본값: 자동 마이그레이션 활성화
 		},
 		Redis: RedisConfig{
 			Host:         "localhost",
@@ -277,6 +279,9 @@ func overrideFromEnv(config *Config) {
 	if dbSID := os.Getenv("DB_SID"); dbSID != "" {
 		config.Database.SID = dbSID
 	}
+	if autoMigrate := os.Getenv("AUTO_MIGRATE"); autoMigrate != "" {
+		config.Database.AutoMigrate = parseBool(autoMigrate)
+	}
 
 	if redisHost := os.Getenv("REDIS_HOST"); redisHost != "" {
 		config.Redis.Host = redisHost
@@ -298,6 +303,11 @@ func parseInt(s string) int {
 	var result int
 	fmt.Sscanf(s, "%d", &result)
 	return result
+}
+
+// parseBool은 문자열을 불리언으로 변환합니다.
+func parseBool(s string) bool {
+	return s == "true" || s == "1" || s == "yes" || s == "on"
 }
 
 // GetDSN은 OracleDB 연결 문자열을 반환합니다 (sijms/go-ora/v2 형식).

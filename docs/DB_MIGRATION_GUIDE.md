@@ -875,9 +875,9 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [x] `dbconfig.example.yml` 템플릿 생성 완료 확인
 
 ### 2. Config 설정 추가
-- [ ] `pkg/config/config.go`에 `AutoMigrate bool` 필드 추가
-- [ ] `config/config.yaml`에 `auto_migrate: true` 설정 추가
-- [ ] 환경 변수 `AUTO_MIGRATE` 지원 구현
+- [x] `pkg/config/config.go`에 `AutoMigrate bool` 필드 추가
+- [x] `config/config.yaml`에 `auto_migrate: true` 설정 추가
+- [x] 환경 변수 `AUTO_MIGRATE` 지원 구현
 
 ### 3. 마이그레이션 CLI 도구 구현
 - [ ] `cmd/migrate/main.go` 파일 생성

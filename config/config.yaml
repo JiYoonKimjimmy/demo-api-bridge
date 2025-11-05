@@ -24,6 +24,10 @@ database:
   max_idle_conns: 5
   conn_max_lifetime: 5m
   connection_timeout: 10s
+  # 자동 마이그레이션 설정 (기본값: true)
+  # development/staging: true (권장)
+  # production: 환경 변수로 제어 가능 (export AUTO_MIGRATE=false)
+  auto_migrate: true
 
 # Redis Cache 설정 (외부 접근 가능한 Redis 서버) - DEPRECATED
 # 현재는 Ristretto 로컬 캐시를 사용합니다.
