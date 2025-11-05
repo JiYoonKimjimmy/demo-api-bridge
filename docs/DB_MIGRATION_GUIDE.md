@@ -894,14 +894,14 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [x] DB 연결 전 마이그레이션 실행 순서 확인
 
 ### 5. 마이그레이션 파일 작성
-- [ ] `20250105_001_create_routing_rules.sql` 작성
-- [ ] `20250105_002_create_api_endpoints.sql` 작성
-- [ ] `20250105_003_create_orchestration_rules.sql` 작성
-- [ ] `20250105_004_create_comparison_logs.sql` 작성
-- [ ] `20250105_005_add_performance_indexes.sql` 작성
-- [ ] 각 파일에 Up/Down 섹션 모두 작성
-- [ ] 멱등성 보장 (여러 번 실행 가능)
-- [ ] 외래 키 제약 조건 추가
+- [x] `20250105_001_create_routing_rules.sql` 작성
+- [x] `20250105_002_create_api_endpoints.sql` 작성
+- [x] `20250105_003_create_orchestration_rules.sql` 작성
+- [x] `20250105_004_create_comparison_logs.sql` 작성
+- [x] `20250105_005_add_performance_indexes.sql` 작성
+- [x] 각 파일에 Up/Down 섹션 모두 작성
+- [x] 멱등성 보장 (여러 번 실행 가능)
+- [x] 외래 키 제약 조건 추가
 
 ### 6. go.mod 업데이트
 - [ ] `go get -tags oracle github.com/rubenv/sql-migrate` 실행
