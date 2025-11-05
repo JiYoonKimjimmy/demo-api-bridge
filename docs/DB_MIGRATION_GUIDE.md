@@ -866,30 +866,85 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 
 ## 체크리스트
 
-### 초기 설정
-- [ ] sql-migrate 설치 (`go get -tags oracle`)
-- [ ] CLI 도구 설치 (선택사항)
+### 1. 초기 설정
+- [ ] sql-migrate 라이브러리 설치 (`go get -tags oracle github.com/rubenv/sql-migrate`)
+- [ ] CLI 도구 설치 (선택사항) (`go install -tags oracle github.com/rubenv/sql-migrate/...@latest`)
 - [ ] `db/migrations/` 디렉토리 생성
-- [ ] `dbconfig.yml` 작성 (`.gitignore`에 추가)
-- [ ] `dbconfig.example.yml` 템플릿 생성
+- [ ] `dbconfig.yml` 작성 (config.yaml의 database 설정 기반)
+- [ ] `.gitignore`에 `dbconfig.yml` 추가 확인
+- [ ] `dbconfig.example.yml` 템플릿 생성 완료 확인
 
-### 마이그레이션 작성
-- [ ] 명명 규칙 준수 (`YYYYMMDD_NNN_description.sql`)
-- [ ] Up/Down 섹션 모두 작성
+### 2. Config 설정 추가
+- [ ] `pkg/config/config.go`에 `AutoMigrate bool` 필드 추가
+- [ ] `config/config.yaml`에 `auto_migrate: true` 설정 추가
+- [ ] 환경 변수 `AUTO_MIGRATE` 지원 구현
+
+### 3. 마이그레이션 CLI 도구 구현
+- [ ] `cmd/migrate/main.go` 파일 생성
+- [ ] 환경별 DSN 설정 함수 구현 (`getDSNByEnv`)
+- [ ] 마이그레이션 실행 로직 구현 (up/down)
+- [ ] 환경 변수 우선 처리 로직 추가
+- [ ] CLI 테스트 (`go run cmd/migrate/main.go -env=development -direction=up`)
+
+### 4. 애플리케이션 자동 마이그레이션 구현
+- [ ] `cmd/api-bridge/main.go`에 `runMigrations` 함수 추가
+- [ ] `initializeDependencies`에 자동 마이그레이션 호출 추가
+- [ ] 마이그레이션 실패 시 애플리케이션 시작 중단 로직 구현
+- [ ] 마이그레이션 성공/실패 로깅 추가
+- [ ] DB 연결 전 마이그레이션 실행 순서 확인
+
+### 5. 마이그레이션 파일 작성
+- [ ] `20250105_001_create_routing_rules.sql` 작성
+- [ ] `20250105_002_create_api_endpoints.sql` 작성
+- [ ] `20250105_003_create_orchestration_rules.sql` 작성
+- [ ] `20250105_004_create_comparison_logs.sql` 작성
+- [ ] `20250105_005_add_performance_indexes.sql` 작성
+- [ ] 각 파일에 Up/Down 섹션 모두 작성
 - [ ] 멱등성 보장 (여러 번 실행 가능)
-- [ ] 롤백 테스트 완료
+- [ ] 외래 키 제약 조건 추가
 
-### 실행 전 확인
-- [ ] 로컬 환경에서 테스트 완료
-- [ ] 백업 완료 (프로덕션)
+### 6. go.mod 업데이트
+- [ ] `go get -tags oracle github.com/rubenv/sql-migrate` 실행
+- [ ] `go mod tidy` 실행하여 의존성 정리
+- [ ] `go.sum` 업데이트 확인
+
+### 7. 로컬 환경 테스트
+- [ ] OracleDB 연결 확인 (dbconfig.yml 설정 검증)
+- [ ] CLI 도구로 마이그레이션 테스트 (`sql-migrate up`)
+- [ ] 테이블 생성 확인 (`DESC table_name`)
+- [ ] 인덱스 생성 확인 (`SELECT * FROM user_indexes`)
+- [ ] 외래 키 제약 조건 확인 (`SELECT * FROM user_constraints`)
+- [ ] 롤백 테스트 (`sql-migrate down -limit=1`)
+- [ ] 재실행 테스트 (멱등성 검증)
+
+### 8. 애플리케이션 통합 테스트
+- [ ] 애플리케이션 시작 시 자동 마이그레이션 동작 확인
+- [ ] 마이그레이션 로그 출력 확인
+- [ ] 기존 테이블이 있을 때 정상 동작 확인
+- [ ] 마이그레이션 실패 시 애플리케이션 종료 확인
+- [ ] API 엔드포인트 동작 테스트 (CRUD 작업)
+
+### 9. 실행 전 확인 (배포)
+- [ ] 백업 완료 (프로덕션 환경)
 - [ ] 팀원에게 공지 (다운타임 필요 시)
 - [ ] `sql-migrate status`로 현재 상태 확인
+- [ ] 마이그레이션 파일 검토 (코드 리뷰)
+- [ ] Staging 환경에서 선행 테스트 완료
 
-### 실행 후 검증
-- [ ] 테이블 생성 확인 (`DESC table_name`)
-- [ ] 인덱스 확인 (`SELECT * FROM user_indexes WHERE table_name = '...'`)
-- [ ] 제약 조건 확인 (`SELECT * FROM user_constraints WHERE table_name = '...'`)
-- [ ] 애플리케이션 동작 테스트
+### 10. 실행 후 검증
+- [ ] 모든 테이블 생성 확인
+- [ ] 인덱스 생성 확인
+- [ ] 제약 조건 정상 동작 확인
+- [ ] 애플리케이션 정상 구동 확인
+- [ ] API 기능 테스트 (통합 테스트)
+- [ ] 성능 테스트 (쿼리 실행 계획 확인)
+- [ ] 로그 모니터링 (에러 없음 확인)
+
+### 11. 문서화 및 정리
+- [ ] 마이그레이션 이력 문서화
+- [ ] 팀원 공유 및 가이드 전달
+- [ ] 트러블슈팅 사례 업데이트
+- [ ] Git 커밋 및 푸시
 
 ---
 
