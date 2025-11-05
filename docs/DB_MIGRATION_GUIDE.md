@@ -867,12 +867,12 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 ## 체크리스트
 
 ### 1. 초기 설정
-- [ ] sql-migrate 라이브러리 설치 (`go get -tags oracle github.com/rubenv/sql-migrate`)
+- [x] sql-migrate 라이브러리 설치 (`go get -tags oracle github.com/rubenv/sql-migrate`)
 - [ ] CLI 도구 설치 (선택사항) (`go install -tags oracle github.com/rubenv/sql-migrate/...@latest`)
-- [ ] `db/migrations/` 디렉토리 생성
-- [ ] `dbconfig.yml` 작성 (config.yaml의 database 설정 기반)
-- [ ] `.gitignore`에 `dbconfig.yml` 추가 확인
-- [ ] `dbconfig.example.yml` 템플릿 생성 완료 확인
+- [x] `db/migrations/` 디렉토리 생성
+- [x] `dbconfig.yml` 작성 (config.yaml의 database 설정 기반)
+- [x] `.gitignore`에 `dbconfig.yml` 추가 확인
+- [x] `dbconfig.example.yml` 템플릿 생성 완료 확인
 
 ### 2. Config 설정 추가
 - [ ] `pkg/config/config.go`에 `AutoMigrate bool` 필드 추가
