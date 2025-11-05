@@ -904,9 +904,9 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [x] 외래 키 제약 조건 추가
 
 ### 6. go.mod 업데이트
-- [ ] `go get -tags oracle github.com/rubenv/sql-migrate` 실행
-- [ ] `go mod tidy` 실행하여 의존성 정리
-- [ ] `go.sum` 업데이트 확인
+- [x] `go get -tags oracle github.com/rubenv/sql-migrate` 실행
+- [x] `go mod tidy` 실행하여 의존성 정리
+- [x] `go.sum` 업데이트 확인
 
 ### 7. 로컬 환경 테스트
 - [ ] OracleDB 연결 확인 (dbconfig.yml 설정 검증)
