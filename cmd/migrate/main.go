@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 
 	_ "github.com/sijms/go-ora/v2"
 	migrate "github.com/rubenv/sql-migrate"
@@ -61,16 +63,23 @@ func main() {
 		Dir: "db/migrations",
 	}
 
-	// 마이그레이션 실행 (oci8 dialect 사용)
+	// 마이그레이션 실행 또는 상태 확인
 	var n int
-	if *direction == "up" {
+	if *direction == "status" {
+		// 상태 확인
+		if err := showMigrationStatus(db, migrations); err != nil {
+			fmt.Printf("❌ Failed to get migration status: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	} else if *direction == "up" {
 		fmt.Println("🚀 Applying migrations...")
 		n, err = migrate.ExecMax(db, "oci8", migrations, migrate.Up, *limit)
 	} else if *direction == "down" {
 		fmt.Println("⏪ Rolling back migrations...")
 		n, err = migrate.ExecMax(db, "oci8", migrations, migrate.Down, *limit)
 	} else {
-		fmt.Printf("❌ Invalid direction: %s (use 'up' or 'down')\n", *direction)
+		fmt.Printf("❌ Invalid direction: %s (use 'up', 'down', or 'status')\n", *direction)
 		os.Exit(1)
 	}
 
@@ -94,21 +103,76 @@ func getDSNByEnv(env string) string {
 		return dsn
 	}
 
-	// 기본값 (개발 환경) - sijms/go-ora 형식
+	// 기본값 (dbconfig.yml과 동일한 환경 정보) - sijms/go-ora 형식
 	switch env {
 	case "development":
-		// config.yaml의 database 설정과 동일
+		// dbconfig.yml development 환경과 동일
 		return "oracle://map:StgMAP1104%23@dev1-db.konadc.com:15322/kmdbp19"
 	case "staging":
-		// Staging 환경 설정 (필요 시 수정)
-		return "oracle://map:StgMAP1104%23@staging-host:1521/STAGINGDB"
+		// dbconfig.yml staging 환경과 동일
+		return "oracle://map:StgMAP1104%23@dev3-db.konadc.com:15321/kmdbp"
 	case "production":
-		// Production 환경 설정 (필요 시 수정)
+		// dbconfig.yml production 환경과 동일
 		// 프로덕션은 반드시 환경 변수 사용 권장
 		fmt.Println("⚠️  WARNING: Using hardcoded production credentials!")
 		fmt.Println("   Recommended: export DATABASE_DSN='oracle://user:pass@host:port/sid'")
-		return "oracle://map:CHANGE_ME@prod-host:1521/PRODDB"
+		return "oracle://map:StgMAP1104%23@db.konadc.com:15321/kmdbp"
 	default:
 		return ""
 	}
+}
+
+// showMigrationStatus는 현재 마이그레이션 상태를 보여줍니다
+func showMigrationStatus(db *sql.DB, source *migrate.FileMigrationSource) error {
+	fmt.Println("📊 Migration Status")
+	fmt.Println()
+
+	// 적용된 마이그레이션 기록 조회
+	records, err := migrate.GetMigrationRecords(db, "oci8")
+	if err != nil {
+		return fmt.Errorf("failed to get migration records: %w", err)
+	}
+
+	// 적용된 마이그레이션을 맵으로 저장
+	applied := make(map[string]bool)
+	for _, record := range records {
+		applied[record.Id] = true
+	}
+
+	// 모든 마이그레이션 파일 조회
+	migrations, err := source.FindMigrations()
+	if err != nil {
+		return fmt.Errorf("failed to find migrations: %w", err)
+	}
+
+	// ID로 정렬
+	sort.Slice(migrations, func(i, j int) bool {
+		return migrations[i].Id < migrations[j].Id
+	})
+
+	// 테이블 헤더 출력
+	fmt.Println("+----+--------------------------------------------------+---------+")
+	fmt.Println("| ID | Migration                                        | Applied |")
+	fmt.Println("+----+--------------------------------------------------+---------+")
+
+	// 각 마이그레이션 상태 출력
+	appliedCount := 0
+	for _, m := range migrations {
+		status := "no"
+		if applied[m.Id] {
+			status = "yes"
+			appliedCount++
+		}
+		filename := filepath.Base(m.Id)
+		// 파일명이 길면 자르기
+		if len(filename) > 48 {
+			filename = filename[:45] + "..."
+		}
+		fmt.Printf("| %-2s | %-48s | %-7s |\n", m.Id, filename, status)
+	}
+
+	fmt.Println("+----+--------------------------------------------------+---------+")
+	fmt.Printf("\n✅ Applied: %d/%d migrations\n", appliedCount, len(migrations))
+
+	return nil
 }
