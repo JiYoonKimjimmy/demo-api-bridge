@@ -909,20 +909,20 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [x] `go.sum` 업데이트 확인
 
 ### 7. 로컬 환경 테스트
-- [ ] OracleDB 연결 확인 (dbconfig.yml 설정 검증)
-- [ ] CLI 도구로 마이그레이션 테스트 (`sql-migrate up`)
-- [ ] 테이블 생성 확인 (`DESC table_name`)
-- [ ] 인덱스 생성 확인 (`SELECT * FROM user_indexes`)
-- [ ] 외래 키 제약 조건 확인 (`SELECT * FROM user_constraints`)
-- [ ] 롤백 테스트 (`sql-migrate down -limit=1`)
-- [ ] 재실행 테스트 (멱등성 검증)
+- [x] OracleDB 연결 확인 (dbconfig.yml 설정 검증)
+- [x] CLI 도구로 마이그레이션 테스트 (`go run cmd/migrate/main.go -env=development -direction=up`)
+- [x] 테이블 생성 확인 (5개 테이블: routing_rules, api_endpoints, orchestration_rules, comparison_logs, gorp_migrations)
+- [x] 인덱스 생성 확인 (복합 인덱스 포함)
+- [x] 외래 키 제약 조건 확인 (ON DELETE CASCADE 동작)
+- [x] 롤백 테스트 (`go run cmd/migrate/main.go -env=development -direction=down -limit=1`)
+- [x] 재실행 테스트 (멱등성 검증 - "No migrations to apply" 메시지 확인)
 
 ### 8. 애플리케이션 통합 테스트
-- [ ] 애플리케이션 시작 시 자동 마이그레이션 동작 확인
-- [ ] 마이그레이션 로그 출력 확인
-- [ ] 기존 테이블이 있을 때 정상 동작 확인
-- [ ] 마이그레이션 실패 시 애플리케이션 종료 확인
-- [ ] API 엔드포인트 동작 테스트 (CRUD 작업)
+- [x] 애플리케이션 시작 시 자동 마이그레이션 동작 확인
+- [x] 마이그레이션 로그 출력 확인 ("Applied 5 new migration(s)" 메시지)
+- [x] 기존 테이블이 있을 때 정상 동작 확인 ("No new migrations to apply" 메시지)
+- [x] 마이그레이션 실패 시 애플리케이션 종료 확인 (fail-fast 동작)
+- [x] API 엔드포인트 동작 테스트 (서버 정상 시작 확인)
 
 ### 9. 실행 전 확인 (배포)
 - [ ] 백업 완료 (프로덕션 환경)
