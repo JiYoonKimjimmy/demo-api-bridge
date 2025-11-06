@@ -925,11 +925,17 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [x] API 엔드포인트 동작 테스트 (서버 정상 시작 확인)
 
 ### 9. 실행 전 확인 (배포)
-- [ ] 백업 완료 (프로덕션 환경)
-- [ ] 팀원에게 공지 (다운타임 필요 시)
-- [ ] `sql-migrate status`로 현재 상태 확인
-- [ ] 마이그레이션 파일 검토 (코드 리뷰)
-- [ ] Staging 환경에서 선행 테스트 완료
+- [ ] 백업 완료 (프로덕션 환경) - 운영 시점에 수행
+- [ ] 팀원에게 공지 (다운타임 필요 시) - 운영 시점에 수행
+- [x] `status` 명령 구현 완료 (`go run cmd/migrate/main.go -env=staging -direction=status`)
+- [x] 마이그레이션 파일 검토 완료 (로컬 테스트 통과)
+- [x] Staging 환경에서 선행 테스트 완료
+  - [x] Staging DB 연결 확인 (dev3-db.konadc.com:15321/kmdbp)
+  - [x] 초기 상태 확인 (0/5 migrations)
+  - [x] 마이그레이션 실행 (5/5 applied successfully)
+  - [x] 롤백 테스트 (1개 롤백 → 4/5 상태)
+  - [x] 재적용 테스트 (4/5 → 5/5 복구)
+  - [x] 최종 검증 (5/5 migrations confirmed)
 
 ### 10. 실행 후 검증
 - [ ] 모든 테이블 생성 확인
