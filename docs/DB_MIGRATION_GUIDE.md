@@ -938,13 +938,35 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
   - [x] 최종 검증 (5/5 migrations confirmed)
 
 ### 10. 실행 후 검증
-- [ ] 모든 테이블 생성 확인
-- [ ] 인덱스 생성 확인
-- [ ] 제약 조건 정상 동작 확인
-- [ ] 애플리케이션 정상 구동 확인
-- [ ] API 기능 테스트 (통합 테스트)
-- [ ] 성능 테스트 (쿼리 실행 계획 확인)
-- [ ] 로그 모니터링 (에러 없음 확인)
+- [x] 모든 테이블 생성 확인 (`go run cmd/verify/tables.go -env=staging`)
+  - [x] ROUTING_RULES 테이블 존재 확인
+  - [x] API_ENDPOINTS 테이블 존재 확인
+  - [x] ORCHESTRATION_RULES 테이블 존재 확인
+  - [x] COMPARISON_LOGS 테이블 존재 확인
+  - [x] GORP_MIGRATIONS 테이블 존재 확인 (5 rows)
+- [x] 인덱스 생성 확인 (`go run cmd/verify/indexes.go -env=staging`)
+  - [x] ROUTING_RULES 인덱스 (4개): IDX_ROUTING_PATH, IDX_ROUTING_ENDPOINT, IDX_ROUTING_ACTIVE, IDX_ROUTING_PATH_METHOD
+  - [x] API_ENDPOINTS 인덱스 (3개): IDX_EP_NAME, IDX_EP_ACTIVE, IDX_EP_URL_METHOD
+  - [x] ORCHESTRATION_RULES 인덱스 (2개): IDX_ORC_ROUTING, IDX_ORC_NAME
+  - [x] COMPARISON_LOGS 인덱스 (3개): IDX_CMP_ROUTING, IDX_CMP_CREATED, IDX_CMP_MATCHED
+  - [x] 모든 인덱스 VALID 상태 확인 (12/12)
+- [x] 제약 조건 정상 동작 확인 (`go run cmd/verify/constraints.go -env=staging`)
+  - [x] Foreign Key 제약 조건 (2개):
+    - [x] FK_ORC_ROUTING (ORCHESTRATION_RULES.ROUTING_RULE_ID → ROUTING_RULES.ID, ON DELETE CASCADE)
+    - [x] FK_CMP_ROUTING (COMPARISON_LOGS.ROUTING_RULE_ID → ROUTING_RULES.ID, ON DELETE CASCADE)
+  - [x] Check 제약 조건 (8개):
+    - [x] CHK_METHOD (ROUTING_RULES.METHOD)
+    - [x] CHK_STRATEGY (ROUTING_RULES.STRATEGY)
+    - [x] CHK_IS_ACTIVE (ROUTING_RULES.IS_ACTIVE)
+    - [x] CHK_EP_METHOD (API_ENDPOINTS.METHOD)
+    - [x] CHK_EP_IS_ACTIVE (API_ENDPOINTS.IS_ACTIVE)
+    - [x] CHK_EXEC_TYPE (ORCHESTRATION_RULES.EXECUTION_TYPE)
+    - [x] CHK_ORC_IS_ACTIVE (ORCHESTRATION_RULES.IS_ACTIVE)
+    - [x] CHK_CMP_IS_MATCHED (COMPARISON_LOGS.IS_MATCHED)
+- [ ] 애플리케이션 정상 구동 확인 - 운영 시점에 수행
+- [ ] API 기능 테스트 (통합 테스트) - 운영 시점에 수행
+- [ ] 성능 테스트 (쿼리 실행 계획 확인) - 운영 시점에 수행
+- [ ] 로그 모니터링 (에러 없음 확인) - 운영 시점에 수행
 
 ### 11. 문서화 및 정리
 - [ ] 마이그레이션 이력 문서화
