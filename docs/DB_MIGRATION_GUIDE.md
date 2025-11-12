@@ -848,6 +848,107 @@ CREATE TABLE routing_rules_backup AS SELECT * FROM routing_rules;
 INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 ```
 
+### 6. DBMS_STATS 실행 문제 (Migration 005)
+
+**증상**: Migration 005에서 PL/SQL EXEC 문 파싱 오류
+```
+Error: failed to execute migrations: sql: expected 1 destination arguments in Scan, not 0
+```
+
+**원인**:
+- sql-migrate가 PL/SQL 블록의 `EXEC` 문을 일반 SQL로 인식
+- `EXEC DBMS_STATS.GATHER_TABLE_STATS(...)` 구문 파싱 실패
+
+**해결 방법**:
+```sql
+-- ❌ 작동하지 않음 (마이그레이션 파일 내)
+EXEC DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'ROUTING_RULES');
+
+-- ✅ 해결 방법 1: 주석 처리 후 수동 실행 (권장)
+-- EXEC DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'ROUTING_RULES');
+
+-- ✅ 해결 방법 2: PL/SQL 블록 사용 (대안)
+BEGIN
+  DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'ROUTING_RULES');
+  DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'API_ENDPOINTS');
+  DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'ORCHESTRATION_RULES');
+  DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'COMPARISON_LOGS');
+END;
+/
+```
+
+**Production 배포 시 권장 절차**:
+```bash
+# 1. 마이그레이션 실행
+go run cmd/migrate/main.go -env=production -direction=up
+
+# 2. SQL*Plus 또는 SQL Developer로 수동 실행
+sqlplus DEMO_USER/<password>@<PROD_DB> <<EOF
+EXEC DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'ROUTING_RULES');
+EXEC DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'API_ENDPOINTS');
+EXEC DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'ORCHESTRATION_RULES');
+EXEC DBMS_STATS.GATHER_TABLE_STATS('DEMO_USER', 'COMPARISON_LOGS');
+EOF
+```
+
+**커밋 참조**: `e615de4 - fix: Simplify migration 005 by commenting out PL/SQL DBMS_STATS`
+
+### 7. Oracle 드라이버 호환성 문제
+
+**증상**: Windows 환경에서 godror 드라이버 설정 복잡도 증가
+
+**원인**:
+- godror는 Oracle Instant Client 필수
+- Windows에서 PATH 설정 및 환경 변수 관리 복잡
+
+**해결 방법**: sijms/go-ora 드라이버로 변경
+```go
+// ❌ Before (godror)
+import _ "github.com/godror/godror"
+dsn := `user="DEMO_USER" password="demo_password" connectString="localhost:1521/XEPDB1"`
+
+// ✅ After (go-ora)
+import _ "github.com/sijms/go-ora/v2"
+dsn := "oracle://DEMO_USER:demo_password@localhost:1521/XEPDB1"
+```
+
+**장점**:
+- ✅ Oracle Instant Client 불필요
+- ✅ 순수 Go 구현으로 크로스 플랫폼 지원
+- ✅ 설치 및 설정 간소화
+
+**주의사항**:
+- DSN 형식 변경 필요 (모든 환경 설정 파일 업데이트)
+- 기존 godror 코드와 호환되지 않음
+
+### 8. 마이그레이션 테이블 이름 불일치
+
+**증상**: 마이그레이션 이력이 `gorp_migrations` 테이블에 저장됨 (예상: `schema_migrations`)
+
+**원인**:
+- sql-migrate는 dialect에 따라 다른 테이블명 사용
+- `oci8` dialect (Oracle): `gorp_migrations`
+- `postgres`, `mysql` dialect: `schema_migrations`
+
+**확인 방법**:
+```sql
+-- 마이그레이션 이력 조회
+SELECT id, applied_at FROM gorp_migrations ORDER BY applied_at;
+```
+
+**영향**:
+- ✅ 정상 동작 (문제 없음)
+- sql-migrate가 자동으로 올바른 테이블명 사용
+- 별도 설정 변경 불필요
+
+**참고**:
+- 테이블명을 변경하려면 `dbconfig.yml`에서 `table` 옵션 수정 가능
+  ```yaml
+  development:
+    dialect: oracle
+    table: schema_migrations  # 기본값: gorp_migrations
+  ```
+
 ---
 
 ## 참고 자료
@@ -969,10 +1070,20 @@ INSERT INTO routing_rules SELECT * FROM routing_rules_backup;
 - [ ] 로그 모니터링 (에러 없음 확인) - 운영 시점에 수행
 
 ### 11. 문서화 및 정리
-- [ ] 마이그레이션 이력 문서화
-- [ ] 팀원 공유 및 가이드 전달
-- [ ] 트러블슈팅 사례 업데이트
-- [ ] Git 커밋 및 푸시
+- [x] 마이그레이션 이력 문서화
+  - [x] MIGRATION_HISTORY.md 생성 (5개 마이그레이션 상세 이력)
+  - [x] Development/Staging 환경 적용 이력 기록
+  - [x] 검증 결과 문서화 (테이블 5개, 인덱스 12개, 제약조건 10개)
+- [x] 팀원 공유 및 가이드 전달
+  - [x] TEAM_ONBOARDING.md 생성 (Quick Start 가이드)
+  - [x] README.md에 DB 마이그레이션 섹션 추가
+  - [x] 주요 명령어 치트시트 작성
+  - [x] 온보딩 체크리스트 제공
+- [x] 트러블슈팅 사례 업데이트
+  - [x] Issue #6: DBMS_STATS 실행 문제 (해결 방법 포함)
+  - [x] Issue #7: Oracle 드라이버 호환성 (godror → go-ora)
+  - [x] Issue #8: 마이그레이션 테이블 이름 (gorp_migrations)
+- [x] Git 커밋 및 푸시
 
 ---
 

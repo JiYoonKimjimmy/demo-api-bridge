@@ -115,6 +115,41 @@ go mod download
 make install-tools
 ```
 
+### 데이터베이스 마이그레이션
+
+프로젝트는 OracleDB 스키마 마이그레이션을 지원합니다. 애플리케이션 시작 시 자동으로 최신 스키마가 적용됩니다.
+
+#### Quick Start
+
+```bash
+# 1. 데이터베이스 설정 파일 생성
+cp dbconfig.example.yml dbconfig.yml
+
+# 2. 마이그레이션 실행 (수동)
+go run cmd/migrate/main.go -env=development -direction=up
+
+# 또는 애플리케이션 시작 시 자동 실행 (권장)
+go run cmd/api-bridge/main.go
+```
+
+#### 마이그레이션 검증
+
+```bash
+# 테이블 확인
+go run cmd/verify/tables.go -env=development
+
+# 인덱스 확인
+go run cmd/verify/indexes.go -env=development
+
+# 제약 조건 확인
+go run cmd/verify/constraints.go -env=development
+```
+
+**상세 가이드**:
+- **[DB Migration Guide](docs/DB_MIGRATION_GUIDE.md)** - 전체 마이그레이션 가이드
+- **[Team Onboarding](docs/TEAM_ONBOARDING.md)** - 신규 팀원 Quick Start
+- **[Migration History](docs/MIGRATION_HISTORY.md)** - 마이그레이션 이력
+
 ### 실행
 
 #### 개발 모드 (핫 리로드)
@@ -309,12 +344,20 @@ API Bridge는 다양한 레벨의 테스트를 지원합니다.
 
 ## 📖 문서
 
+### 아키텍처 및 개발
 - [헥사고날 아키텍처 가이드](./docs/HEXAGONAL_ARCHITECTURE.md)
 - [구현 가이드](./docs/IMPLEMENTATION_GUIDE.md)
-- [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)
-- [테스트 가이드](./docs/TESTING_GUIDE.md)
 - [Go 개발 환경 설정](./docs/GOLANG_SETUP_GUIDE.md)
 - [프레임워크 비교](./docs/FRAMEWORK_COMPARISON.md)
+
+### 데이터베이스
+- [DB 마이그레이션 가이드](./docs/DB_MIGRATION_GUIDE.md) - 전체 마이그레이션 가이드
+- [팀원 온보딩 가이드](./docs/TEAM_ONBOARDING.md) - 신규 팀원 Quick Start
+- [마이그레이션 이력](./docs/MIGRATION_HISTORY.md) - 마이그레이션 실행 이력
+
+### 운영 및 테스트
+- [배포 가이드](./docs/DEPLOYMENT_GUIDE.md)
+- [테스트 가이드](./docs/TESTING_GUIDE.md)
 - [프로파일링 결과](./docs/PROFILING_RESULTS.md)
 - [운영 매뉴얼](./docs/OPERATIONS_MANUAL.md)
 
